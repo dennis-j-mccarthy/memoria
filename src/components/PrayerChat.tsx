@@ -1,16 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ConnectiveText } from "@/components/ConnectiveText";
 import { PrayerRecite } from "@/components/PrayerRecite";
 import { useSpeech } from "@/lib/useSpeech";
-import type { PassageView, SegmentRole } from "@/lib/content";
+import { useAuth } from "@/lib/useAuth";
+import type { PassageView, SegmentRole, SegmentView } from "@/lib/content";
 
 type Perspective = "CALLER" | "RESPONDER" | "BOTH";
 type Mode = "READ" | "RECITE";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface Props {
   passage: PassageView;
+}
+
+/** Anchor overrides to persist: only segments edited away from their default. */
+function buildOverrides(
+  segments: SegmentView[],
+  anchors: Record<string, Set<number>>,
+): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  for (const s of segments) {
+    const cur = anchors[s.id];
+    const orig = s.connectiveIndices;
+    const changed =
+      cur.size !== orig.length || orig.some((i) => !cur.has(i));
+    if (changed) out[s.id] = [...cur].sort((a, b) => a - b);
+  }
+  return out;
 }
 
 /**
@@ -23,8 +42,100 @@ export function PrayerChat({ passage }: Props) {
   const [mode, setMode] = useState<Mode>("READ");
   const [perspective, setPerspective] = useState<Perspective>("BOTH");
   const [highlight, setHighlight] = useState(true);
+  const [editAnchors, setEditAnchors] = useState(false);
   const { supported, activeKey, playingAll, speak, speakAll, stop } =
     useSpeech();
+
+  // Which words are anchors, per segment — seeded from the curated connective
+  // words but editable, and shared between Read and Recite so a change in one
+  // shows up in the other. Lives here, the common parent of both views.
+  const [anchors, setAnchors] = useState<Record<string, Set<number>>>(() =>
+    Object.fromEntries(
+      passage.segments.map((s) => [s.id, new Set(s.connectiveIndices)]),
+    ),
+  );
+
+  const { user } = useAuth();
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
+  // Mirror anchors into a ref so the debounced save reads the latest value.
+  const anchorsRef = useRef(anchors);
+  useEffect(() => {
+    anchorsRef.current = anchors;
+  }, [anchors]);
+
+  // Load this user's saved overrides once (returns {} for signed-out readers).
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/passages/${passage.slug}/anchors`)
+      .then((r) => r.json())
+      .then((d) => {
+        const ov = d?.overrides as Record<string, number[]> | undefined;
+        if (!active || !ov || Object.keys(ov).length === 0) return;
+        setAnchors((prev) => {
+          const next = { ...prev };
+          for (const [segId, idxs] of Object.entries(ov)) {
+            if (next[segId]) next[segId] = new Set(idxs);
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [passage.slug]);
+
+  // Debounced save of the override diff. Anonymous edits stay in-session (the
+  // sign-in nudge handles messaging); only signed-in changes hit the API.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleSave = useCallback(() => {
+    if (!user) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    setSaveStatus("saving");
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/passages/${passage.slug}/anchors`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            overrides: buildOverrides(passage.segments, anchorsRef.current),
+          }),
+        });
+        setSaveStatus(res.ok ? "saved" : "error");
+      } catch {
+        setSaveStatus("error");
+      }
+    }, 600);
+  }, [user, passage.slug, passage.segments]);
+
+  const toggleAnchor = useCallback(
+    (segId: string, wordIndex: number) => {
+      setAnchors((prev) => {
+        const set = new Set(prev[segId]);
+        if (set.has(wordIndex)) set.delete(wordIndex);
+        else set.add(wordIndex);
+        return { ...prev, [segId]: set };
+      });
+      scheduleSave();
+    },
+    [scheduleSave],
+  );
+
+  const resetAnchors = useCallback(() => {
+    setAnchors(
+      Object.fromEntries(
+        passage.segments.map((s) => [s.id, new Set(s.connectiveIndices)]),
+      ),
+    );
+    scheduleSave();
+  }, [passage.segments, scheduleSave]);
+
+  const anchorsEdited = passage.segments.some((s) => {
+    const cur = anchors[s.id];
+    const orig = s.connectiveIndices;
+    return cur.size !== orig.length || orig.some((i) => !cur.has(i));
+  });
 
   function isOutgoing(role: SegmentRole): boolean {
     if (perspective === "BOTH") return role === "RESPONDER";
@@ -62,7 +173,11 @@ export function PrayerChat({ passage }: Props) {
       </div>
 
       {mode === "RECITE" ? (
-        <PrayerRecite passage={passage} />
+        <PrayerRecite
+          passage={passage}
+          anchors={anchors}
+          onToggleAnchor={toggleAnchor}
+        />
       ) : (
         <>
       {/* Controls */}
@@ -136,7 +251,55 @@ export function PrayerChat({ passage }: Props) {
         >
           {highlight ? "Anchors on" : "Anchors off"}
         </button>
+
+        {highlight && (
+          <button
+            onClick={() => setEditAnchors((e) => !e)}
+            aria-pressed={editAnchors}
+            className={`rounded-full border px-3 py-1 font-sans text-sm transition-colors ${
+              editAnchors
+                ? "border-gold bg-gold/10 text-gold"
+                : "border-hairline text-ink-soft hover:text-ink"
+            }`}
+          >
+            {editAnchors ? "Done editing" : "Edit anchors"}
+          </button>
+        )}
+
+        {editAnchors && anchorsEdited && (
+          <button
+            onClick={resetAnchors}
+            className="rounded-full border border-hairline px-3 py-1 font-sans text-sm text-ink-soft transition-colors hover:border-gold/40 hover:text-gold"
+          >
+            ↺ Reset
+          </button>
+        )}
       </div>
+
+      {editAnchors && (
+        <p className="-mt-3 mb-5 font-sans text-xs text-ink-faint">
+          Tap a word to add or remove it as a gold anchor. Your changes carry
+          into Recite mode.{" "}
+          {user ? (
+            <span className="text-ink-soft">
+              {saveStatus === "saving"
+                ? "· Saving…"
+                : saveStatus === "saved"
+                  ? "· Saved"
+                  : saveStatus === "error"
+                    ? "· Couldn’t save — check your connection"
+                    : ""}
+            </span>
+          ) : (
+            <Link
+              href={`/signin?redirect=/prayers/${passage.slug}`}
+              className="text-gold underline-offset-2 hover:underline"
+            >
+              Sign in to save them across devices.
+            </Link>
+          )}
+        </p>
+      )}
 
       {/* Conversation */}
       <ol className="space-y-2.5">
@@ -157,8 +320,11 @@ export function PrayerChat({ passage }: Props) {
               <Bubble role={seg.role} outgoing={outgoing} active={active}>
                 <ConnectiveText
                   text={seg.text}
-                  connectiveIndices={seg.connectiveIndices}
+                  anchorIndices={[...anchors[seg.id]]}
                   highlight={highlight}
+                  onToggleWord={
+                    editAnchors ? (idx) => toggleAnchor(seg.id, idx) : undefined
+                  }
                 />
               </Bubble>
               {supported && (

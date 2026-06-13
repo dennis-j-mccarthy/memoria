@@ -3,25 +3,33 @@ import { Fragment } from "react";
 interface Props {
   text: string;
   /** word indices to highlight as connective-tissue anchors */
-  connectiveIndices?: number[];
+  anchorIndices?: number[];
   /** when false, render plain text (highlighting toggled off) */
   highlight?: boolean;
+  /** when provided, each word becomes a button that toggles its anchor */
+  onToggleWord?: (index: number) => void;
 }
 
 /**
- * Renders a line of recited text, optionally highlighting its connective
- * words (prepositions/conjunctions/relatives) as memory anchors. Splitting on
- * whitespace keeps word indices aligned with the seed's connectiveIndices.
+ * Renders a line of recited text, optionally highlighting its anchor words as
+ * memory scaffolding. When `onToggleWord` is given the words become clickable
+ * so the reader can choose their own anchors. Splitting on whitespace keeps
+ * word indices aligned with the seed's connectiveIndices.
  */
 export function ConnectiveText({
   text,
-  connectiveIndices = [],
+  anchorIndices = [],
   highlight = true,
+  onToggleWord,
 }: Props) {
-  if (!highlight || connectiveIndices.length === 0) {
+  const editable = Boolean(onToggleWord);
+
+  // Nothing to do: not editing and no highlighting to draw.
+  if (!editable && (!highlight || anchorIndices.length === 0)) {
     return <>{text}</>;
   }
-  const set = new Set(connectiveIndices);
+
+  const set = new Set(anchorIndices);
   // Split on whitespace but keep the separators so spacing is preserved.
   // Pre-compute each token's word index (null for whitespace tokens) so the
   // render pass stays free of mutable counters.
@@ -41,7 +49,30 @@ export function ConnectiveText({
     <>
       {tokens.map((token, i) => {
         const wordIndex = wordIndexByToken[i];
-        if (wordIndex !== null && set.has(wordIndex)) {
+        if (wordIndex === null) {
+          return <Fragment key={i}>{token}</Fragment>;
+        }
+        const isAnchor = highlight && set.has(wordIndex);
+
+        if (editable) {
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onToggleWord!(wordIndex)}
+              className={isAnchor ? "word-toggle connective" : "word-toggle"}
+              aria-label={
+                isAnchor
+                  ? `${token} — anchor, tap to remove`
+                  : `${token} — tap to make an anchor`
+              }
+            >
+              {token}
+            </button>
+          );
+        }
+
+        if (isAnchor) {
           return (
             <span key={i} className="connective">
               {token}

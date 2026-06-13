@@ -58,6 +58,7 @@ model Passage {
   practiceSessions PracticeSession[]
   masteryStates   MasteryState[]
   troubleSpots    TroubleSpot[]
+  anchorSets      AnchorSet[]
 
   @@index([contentSetId, tier])
   @@index([ownerUserId])
@@ -99,6 +100,23 @@ model User {
   masteryStates    MasteryState[]
   userBadges       UserBadge[]
   troubleSpots     TroubleSpot[]
+  anchorSets       AnchorSet[]
+}
+
+// A reader's personalized anchor words for a passage. Stores only the segments
+// edited away from the curated connectiveIndices, so new defaults still apply to
+// untouched lines. overrides is JSON-encoded { [segmentId]: number[] }.
+model AnchorSet {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passageId String
+  passage   Passage  @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  overrides String   @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, passageId])
 }
 
 // ---------------------------------------------------------------------------

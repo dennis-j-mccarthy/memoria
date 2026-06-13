@@ -8,6 +8,9 @@ import type { PassageView, SegmentRole } from "@/lib/content";
 
 interface Props {
   passage: PassageView;
+  /** Anchor word indices per segment, owned by the parent and shared with Read. */
+  anchors: Record<string, Set<number>>;
+  onToggleAnchor: (segId: string, wordIndex: number) => void;
 }
 
 /** Share of a line's real words you must speak before it counts as recited. */
@@ -26,7 +29,7 @@ function coverage(realIdx: number[], heard: Set<number>): number {
  * advancing line by line. Tap any word to toggle it as an anchor — i.e. reset
  * which scaffolding shows for that segment — when you need a bigger hint.
  */
-export function PrayerRecite({ passage }: Props) {
+export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
   const segments = passage.segments;
 
   // Per-segment word lists, computed once.
@@ -42,12 +45,6 @@ export function PrayerRecite({ passage }: Props) {
     [segments, words],
   );
 
-  // Anchors shown for each segment, seeded from the curated connective words.
-  const [anchors, setAnchors] = useState<Record<string, Set<number>>>(() =>
-    Object.fromEntries(
-      segments.map((s) => [s.id, new Set(s.connectiveIndices)]),
-    ),
-  );
   // Words revealed by voice as they're recited.
   const [heard, setHeard] = useState<Record<string, Set<number>>>(() =>
     Object.fromEntries(segments.map((s) => [s.id, new Set<number>()])),
@@ -117,17 +114,6 @@ export function PrayerRecite({ passage }: Props) {
     },
     [words, realIdx, start, stop, passage.language, completeSegment],
   );
-
-  // Tap a word to reveal it (and pin it as an anchor for this segment); tap
-  // again to hide it back to a blank.
-  const toggleAnchor = useCallback((segId: string, wordIndex: number) => {
-    setAnchors((prev) => {
-      const set = new Set(prev[segId]);
-      if (set.has(wordIndex)) set.delete(wordIndex);
-      else set.add(wordIndex);
-      return { ...prev, [segId]: set };
-    });
-  }, []);
 
   const revealLine = useCallback(
     (segId: string, index: number) => {
@@ -215,7 +201,7 @@ export function PrayerRecite({ passage }: Props) {
                   anchorSet={anchors[seg.id]}
                   heardSet={heard[seg.id]}
                   done={isDone}
-                  onToggleWord={(idx) => toggleAnchor(seg.id, idx)}
+                  onToggleWord={(idx) => onToggleAnchor(seg.id, idx)}
                 />
               </ReciteBubble>
 

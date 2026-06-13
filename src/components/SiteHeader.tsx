@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AuthStatus } from "@/components/AuthStatus";
 
 export function SiteHeader() {
   return (
@@ -12,7 +13,10 @@ export function SiteHeader() {
         >
           Memoria
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-4">
+          <AuthStatus />
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );
