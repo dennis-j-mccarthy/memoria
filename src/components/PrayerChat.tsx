@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { ConnectiveText } from "@/components/ConnectiveText";
+import { PrayerRecite } from "@/components/PrayerRecite";
 import { useSpeech } from "@/lib/useSpeech";
 import type { PassageView, SegmentRole } from "@/lib/content";
 
 type Perspective = "CALLER" | "RESPONDER" | "BOTH";
+type Mode = "READ" | "RECITE";
 
 interface Props {
   passage: PassageView;
@@ -18,6 +20,7 @@ interface Props {
  * Every line can be heard, plus the whole prayer read aloud in sequence.
  */
 export function PrayerChat({ passage }: Props) {
+  const [mode, setMode] = useState<Mode>("READ");
   const [perspective, setPerspective] = useState<Perspective>("BOTH");
   const [highlight, setHighlight] = useState(true);
   const { supported, activeKey, playingAll, speak, speakAll, stop } =
@@ -36,6 +39,32 @@ export function PrayerChat({ passage }: Props) {
 
   return (
     <div>
+      {/* Read / Recite mode */}
+      <div
+        className="mb-6 inline-flex rounded-full border border-hairline bg-parchment-raised p-1"
+        role="group"
+        aria-label="Choose a mode"
+      >
+        {(["READ", "RECITE"] as Mode[]).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            aria-pressed={mode === m}
+            className={`rounded-full px-4 py-1 font-sans text-sm transition-colors ${
+              mode === m
+                ? "bg-ink text-parchment-raised"
+                : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {m === "READ" ? "Read" : "Recite"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "RECITE" ? (
+        <PrayerRecite passage={passage} />
+      ) : (
+        <>
       {/* Controls */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
         {supported && (
@@ -160,6 +189,8 @@ export function PrayerChat({ passage }: Props) {
           li { animation: none !important; }
         }
       `}</style>
+        </>
+      )}
     </div>
   );
 }

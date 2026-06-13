@@ -129,6 +129,62 @@ body::before {
   color: var(--gold-soft);
 }
 
+/* ------------------------------------------------------------------ *
+ * Recite mode: lines blanked to their anchors; words light up as spoken.
+ * Each word is a borderless button so anchors can be toggled by tap.
+ * ------------------------------------------------------------------ */
+.recite-word {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0 1px;
+  margin: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+}
+.recite-word:hover {
+  background: rgba(176, 131, 39, 0.1);
+}
+/* Anchor words: the gilded scaffolding that stays visible. */
+.recite-word.is-anchor {
+  color: var(--gold);
+  font-weight: 600;
+  font-style: italic;
+}
+[data-theme="dark"] .recite-word.is-anchor,
+:root:not([data-theme="light"]) .recite-word.is-anchor {
+  color: var(--gold-soft);
+}
+/* Words filled in by voice as you recite. */
+.recite-word.is-heard {
+  color: var(--responder);
+}
+/* Blanks: real width preserved (transparent text) with a clear, tappable
+   dashed underline so it reads as a fill-in slot. */
+.recite-word.is-blank {
+  color: transparent;
+  border-bottom: 2px dashed var(--gold-soft);
+  border-radius: 3px;
+  background: rgba(176, 131, 39, 0.06);
+}
+.recite-word.is-blank:hover {
+  border-bottom-style: solid;
+  border-bottom-color: var(--gold);
+  background: rgba(176, 131, 39, 0.16);
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(176, 131, 39, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(176, 131, 39, 0.25);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
