@@ -1,0 +1,213 @@
+// Memoria — recitation memorization app.
+// Content is modeled generically (ContentSet -> Passage -> Segment) so prayers
+// are the first dataset, not the product boundary. See product spec section 7.
+//
+// NOTE on portability: this schema targets SQLite for local dev but avoids
+// SQLite-only features so it can move to Postgres (Neon/Supabase) unchanged.
+// - No native enums (unsupported on SQLite): role/level/strictness are String
+//   fields with documented allowed values.
+// - No Json columns (unsupported on SQLite): array/object fields are stored as
+//   JSON-encoded String and (de)serialized in the app layer.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Content (generic across prayers, poetry, scripture, speeches, user passages)
+// ---------------------------------------------------------------------------
+
+model ContentSet {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  description String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  passages    Passage[]
+}
+
+model Passage {
+  id           String   @id @default(cuid())
+  contentSetId String
+  contentSet   ContentSet @relation(fields: [contentSetId], references: [id], onDelete: Cascade)
+
+  slug        String  @unique
+  title       String
+  source      String? // attribution, e.g. "Roman Missal, 3rd ed. (USCCB)"
+  edition     String? // translation / edition label
+  language    String  @default("en") // BCP-47-ish; "la" for Latin texts
+  tier        Int     @default(1) // difficulty tier (1 foundational … 3 Latin)
+  tags        String  @default("[]") // JSON-encoded string[]
+  popularity  Int     @default(0)
+  dialogic    Boolean @default(false) // true when V./R. call-and-response
+
+  // true if the passage is owned by a single user (paste-your-own); null = curated
+  ownerUserId String?
+  ownerUser   User?   @relation("UserPassages", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  segments        Segment[]
+  practiceSessions PracticeSession[]
+  masteryStates   MasteryState[]
+  troubleSpots    TroubleSpot[]
+
+  @@index([contentSetId, tier])
+  @@index([ownerUserId])
+}
+
+model Segment {
+  id        String  @id @default(cuid())
+  passageId String
+  passage   Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  order Int
+  // CALLER | RESPONDER | UNISON | SOLO
+  role  String  @default("SOLO")
+  text  String
+  // JSON-encoded number[]: indices of connective words (the "scaffolding")
+  connectiveIndices String @default("[]")
+  // optional method-of-loci station hint for long texts
+  lociHint String?
+
+  lineAttempts LineAttempt[]
+
+  @@unique([passageId, order])
+}
+
+// ---------------------------------------------------------------------------
+// Users & auth (custom JWT via jose — matches sibling repos)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  passages         Passage[]         @relation("UserPassages")
+  practiceSessions PracticeSession[]
+  masteryStates    MasteryState[]
+  userBadges       UserBadge[]
+  troubleSpots     TroubleSpot[]
+}
+
+// ---------------------------------------------------------------------------
+// Practice & scoring
+// ---------------------------------------------------------------------------
+
+model PracticeSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passageId String
+  passage   Passage  @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  // role being drilled: CALLER | RESPONDER | BOTH
+  role       String   @default("BOTH")
+  // forgiving | standard | strict | exact
+  strictness String   @default("forgiving")
+  // true when started with no warm-up (counts toward "cold" mastery requirement)
+  cold       Boolean  @default(false)
+  accuracy   Float?   // 0..1 overall, set on completion
+  startedAt  DateTime @default(now())
+  completedAt DateTime?
+
+  lineAttempts LineAttempt[]
+
+  @@index([userId, passageId])
+}
+
+model LineAttempt {
+  id        String          @id @default(cuid())
+  sessionId String
+  session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  segmentId String
+  segment   Segment         @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  transcript String
+  accuracy   Float   // 0..1 for this line
+  // JSON-encoded string[] of words the user got wrong/missed
+  errorWords String  @default("[]")
+  createdAt  DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+// Per (user x passage x role) spaced-repetition + mastery state (SM-2 variant).
+model MasteryState {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passageId String
+  passage   Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+  role      String  // CALLER | RESPONDER | BOTH
+
+  // learning | refreshing | mastered
+  level      String  @default("learning")
+  strictness String  @default("forgiving")
+
+  // SM-2 fields
+  easeFactor   Float    @default(2.5)
+  intervalDays Int      @default(0)
+  repetitions  Int      @default(0)
+  nextReviewAt DateTime?
+
+  // mastery accounting (>=95% across N sessions over >=7 days incl. a cold one)
+  qualifyingSessions Int       @default(0)
+  hadColdSession     Boolean   @default(false)
+  firstQualifiedAt   DateTime?
+  lastSessionAt      DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, passageId, role])
+  @@index([userId, nextReviewAt])
+}
+
+// ---------------------------------------------------------------------------
+// Gamification
+// ---------------------------------------------------------------------------
+
+model Badge {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  title       String
+  description String
+  icon        String?     // icon key / emoji
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+model TroubleSpot {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passageId String
+  passage   Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+  word      String
+  errorCount Int    @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, passageId, word])
+}
