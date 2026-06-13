@@ -1,4 +1,4 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
 function createClient() {
@@ -6,10 +6,9 @@ function createClient() {
   if (!url) {
     throw new Error("DATABASE_URL is not set");
   }
-  // Local dev: SQLite via the better-sqlite3 driver adapter. The adapter accepts
-  // a `file:`-prefixed URL. Swap PrismaBetterSqlite3 for PrismaPg (and the
-  // datasource provider) when moving to Postgres.
-  return new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) });
+  // Neon Postgres via the pg driver adapter. DATABASE_URL is the pooled
+  // connection string; Vercel injects it automatically via the Neon integration.
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };

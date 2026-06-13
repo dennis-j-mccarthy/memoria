@@ -2,12 +2,11 @@
 // Content is modeled generically (ContentSet -> Passage -> Segment) so prayers
 // are the first dataset, not the product boundary. See product spec section 7.
 //
-// NOTE on portability: this schema targets SQLite for local dev but avoids
-// SQLite-only features so it can move to Postgres (Neon/Supabase) unchanged.
-// - No native enums (unsupported on SQLite): role/level/strictness are String
-//   fields with documented allowed values.
-// - No Json columns (unsupported on SQLite): array/object fields are stored as
-//   JSON-encoded String and (de)serialized in the app layer.
+// DB: Neon Postgres (local dev and production share the same provider).
+// Roles/levels/strictness are String fields with documented allowed values, and
+// array/object fields are stored as JSON-encoded String and (de)serialized in
+// the app layer. These could become native Postgres enums / Json columns later;
+// kept as simple scalars for now to keep the seed + scoring code straightforward.
 
 generator client {
   provider = "prisma-client"
@@ -15,7 +14,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ---------------------------------------------------------------------------
