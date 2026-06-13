@@ -1,26 +1,139 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ *
+ * Memoria design system
+ * "Quiet luxury meets illuminated manuscript": deep ink/navy + warm
+ * parchment + a single gilded accent. Serif for sacred text, humanist
+ * sans for UI. Light by default; "compline" dark mode from day one.
+ * ------------------------------------------------------------------ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Parchment & ink */
+  --parchment: #f6f1e7;
+  --parchment-raised: #fffdf8;
+  --ink: #1f2530;
+  --ink-soft: #4a5160;
+  --ink-faint: #8b8f99;
+  --hairline: #e4dccb;
+
+  /* Gilded accent */
+  --gold: #b08327;
+  --gold-soft: #c9a44c;
+
+  /* Chat roles — familiar (blue/green) but elevated, desaturated */
+  --caller: #3a6ea5; /* Versicle / Leader */
+  --caller-ink: #ffffff;
+  --responder: #4b7d5b; /* Response */
+  --responder-ink: #ffffff;
+  --unison: var(--parchment-raised);
+  --unison-ink: var(--ink);
+
+  --bubble-shadow: 0 1px 2px rgba(31, 37, 48, 0.06),
+    0 6px 16px rgba(31, 37, 48, 0.06);
+
+  --background: var(--parchment);
+  --foreground: var(--ink);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Compline mode — explicit or via system preference */
+[data-theme="dark"] {
+  --parchment: #12141b;
+  --parchment-raised: #1b1e27;
+  --ink: #ece7da;
+  --ink-soft: #b3ad9d;
+  --ink-faint: #76798a;
+  --hairline: #2a2d38;
+
+  --gold: #d8b25a;
+  --gold-soft: #e6c97f;
+
+  --caller: #4a7fb8;
+  --responder: #5a9070;
+  --unison: #232733;
+  --unison-ink: #ece7da;
+
+  --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --parchment: #12141b;
+    --parchment-raised: #1b1e27;
+    --ink: #ece7da;
+    --ink-soft: #b3ad9d;
+    --ink-faint: #76798a;
+    --hairline: #2a2d38;
+    --gold: #d8b25a;
+    --gold-soft: #e6c97f;
+    --caller: #4a7fb8;
+    --responder: #5a9070;
+    --unison: #232733;
+    --unison-ink: #ece7da;
+    --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
+      0 8px 20px rgba(0, 0, 0, 0.35);
   }
 }
 
+@theme inline {
+  --color-parchment: var(--parchment);
+  --color-parchment-raised: var(--parchment-raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-hairline: var(--hairline);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-caller: var(--caller);
+  --color-responder: var(--responder);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-serif: var(--font-serif), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  border-color: var(--hairline);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--parchment);
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle parchment texture (no kitsch) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.5;
+  background-image: radial-gradient(
+    rgba(176, 131, 39, 0.04) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+/* Connective-tissue anchor: prepositions/conjunctions as memory scaffolding */
+.connective {
+  color: var(--gold);
+  font-weight: 600;
+  font-style: italic;
+}
+[data-theme="dark"] .connective,
+:root:not([data-theme="light"]) .connective {
+  color: var(--gold-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
