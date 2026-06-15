@@ -19,37 +19,46 @@ function EditableLine({
   ln,
   showRole,
   onWord,
-  onRole,
+  onSetRole,
 }: {
   ln: ImmersiveLine;
   isR: boolean;
   showRole: boolean;
   onWord: (wi: number) => void;
-  onRole: () => void;
+  onSetRole: (role: "L" | "R") => void;
 }) {
   const ws = ln.text.split(/\s+/).filter(Boolean);
+  const arrow = (role: "L" | "R", glyph: string, label: string) => {
+    const active = ln.role === role;
+    return (
+      <button
+        onClick={() => onSetRole(role)}
+        aria-label={label}
+        aria-pressed={active}
+        style={{
+          font: "inherit",
+          fontSize: 13,
+          lineHeight: 1,
+          padding: "2px 5px",
+          borderRadius: 8,
+          background: active ? "rgba(255,255,255,.28)" : "transparent",
+          border: "none",
+          color: active ? "inherit" : "rgba(127,127,127,.55)",
+          cursor: "pointer",
+          verticalAlign: "middle",
+        }}
+      >
+        {glyph}
+      </button>
+    );
+  };
   return (
     <>
       {showRole && (
-        <button
-          onClick={onRole}
-          aria-label="Flip Leader / Response"
-          style={{
-            font: "inherit",
-            fontSize: 12,
-            fontWeight: 700,
-            marginRight: 6,
-            padding: "1px 6px",
-            borderRadius: 999,
-            background: "rgba(255,255,255,.22)",
-            border: "1px solid rgba(255,255,255,.35)",
-            color: "inherit",
-            cursor: "pointer",
-            verticalAlign: "middle",
-          }}
-        >
-          {ln.role === "R" ? "R·" : "V·"}
-        </button>
+        <span style={{ display: "inline-flex", gap: 1, marginRight: 6, verticalAlign: "middle" }}>
+          {arrow("L", "◀", "Make this the Leader")}
+          {arrow("R", "▶", "Make this the Response")}
+        </span>
       )}
       {ws.map((w, wi) => {
         const a = ln.anchors.includes(wi);
@@ -231,10 +240,8 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
       else set.add(wi);
       return { ...d, anchors: { ...d.anchors, [order]: [...set].sort((a, b) => a - b) } };
     });
-  const flipRole = (order: number) =>
-    setDraft((d) =>
-      d ? { ...d, roles: { ...d.roles, [order]: d.roles[order] === "L" ? "R" : "L" } } : d,
-    );
+  const setLineRole = (order: number, role: "L" | "R") =>
+    setDraft((d) => (d ? { ...d, roles: { ...d.roles, [order]: role } } : d));
   const saveEdit = async () => {
     if (!draft) return;
     const d = draft;
@@ -575,7 +582,7 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
 
         {editing && (
           <div style={{ textAlign: "center", marginTop: 16, fontSize: 12.5, color: "var(--ink-soft)" }}>
-            Tap words to set gold anchors{p.cr ? " · tap a V·/R· badge to flip the role" : ""}.
+            Tap words to set gold anchors{p.cr ? " · use ◀ ▶ to set Leader / Response" : ""}.
           </div>
         )}
 
@@ -613,7 +620,7 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
                       isR={isR}
                       showRole={p.cr}
                       onWord={(wi) => toggleWordAnchor(ln.order, wi)}
-                      onRole={() => flipRole(ln.order)}
+                      onSetRole={(role) => setLineRole(ln.order, role)}
                     />
                   ) : (
                     <>
