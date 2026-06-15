@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
-import { EB_Garamond, Inter } from "next/font/google";
+import { Cormorant_Garamond, Barlow } from "next/font/google";
 import "./globals.css";
 
-const serif = EB_Garamond({
+// Cormorant Garamond — the sacred voice (display + all prayer text).
+const serif = Cormorant_Garamond({
   variable: "--font-serif",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
-const sans = Inter({
+// Barlow — UI / labels / body.
+const sans = Barlow({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 

@@ -1,77 +1,119 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * Memoria design system
- * "Quiet luxury meets illuminated manuscript": deep ink/navy + warm
- * parchment + a single gilded accent. Serif for sacred text, humanist
- * sans for UI. Light by default; "compline" dark mode from day one.
+ * Memoria design system — "Hallow-style" immersive build.
+ * Midnight gradients, glass, glowing gold; warm-devotional and reverent.
+ * Two themes share the gold + leader/response hues; everything else flips.
+ * Cormorant Garamond for sacred text, Barlow for UI.
  * ------------------------------------------------------------------ */
 
+/* LIGHT — "Dawn" */
 :root {
-  /* Parchment & ink */
-  --parchment: #f6f1e7;
-  --parchment-raised: #fffdf8;
-  --ink: #1f2530;
-  --ink-soft: #4a5160;
-  --ink-faint: #8b8f99;
-  --hairline: #e4dccb;
+  --parchment: #f3ebdb;
+  --parchment-raised: #fcf7ed;
+  --ink: #2b2620;
+  --ink-soft: #6e655a;
+  --ink-faint: #9a8f7e;
+  --hairline: rgba(43, 38, 32, 0.12);
 
-  /* Gilded accent */
-  --gold: #b08327;
-  --gold-soft: #c9a44c;
+  --gold: #b0842a;
+  --gold-soft: #c99a38;
+  --gold-glow: rgba(201, 154, 56, 0.35);
 
-  /* Chat roles — familiar (blue/green) but elevated, desaturated */
-  --caller: #3a6ea5; /* Versicle / Leader */
+  --caller: #43597e; /* Leader */
   --caller-ink: #ffffff;
-  --responder: #4b7d5b; /* Response */
+  --responder: #586b4b; /* Response */
   --responder-ink: #ffffff;
   --unison: var(--parchment-raised);
   --unison-ink: var(--ink);
 
-  --bubble-shadow: 0 1px 2px rgba(31, 37, 48, 0.06),
-    0 6px 16px rgba(31, 37, 48, 0.06);
+  --glass: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(43, 38, 32, 0.1);
+  --glass-strong: rgba(252, 247, 237, 0.85);
+
+  --bubble-shadow: 0 2px 4px rgba(43, 38, 32, 0.04),
+    0 12px 30px rgba(43, 38, 32, 0.07);
+
+  --screen-bg: radial-gradient(
+      135% 75% at 50% -8%,
+      #fcf7ed 0%,
+      #f3ebdb 40%,
+      #ece2cf 74%
+    ),
+    radial-gradient(72% 42% at 84% 4%, rgba(196, 166, 224, 0.34), transparent 60%),
+    radial-gradient(95% 55% at 42% 116%, rgba(227, 188, 92, 0.34), transparent 60%);
 
   --background: var(--parchment);
   --foreground: var(--ink);
 }
 
-/* Compline mode — explicit or via system preference */
+/* DARK — "Candlelight" */
 [data-theme="dark"] {
-  --parchment: #12141b;
-  --parchment-raised: #1b1e27;
-  --ink: #ece7da;
-  --ink-soft: #b3ad9d;
-  --ink-faint: #76798a;
-  --hairline: #2a2d38;
+  --parchment: #0a0c18;
+  --parchment-raised: #16182b;
+  --ink: #f4eee2;
+  --ink-soft: rgba(236, 230, 218, 0.62);
+  --ink-faint: rgba(236, 230, 218, 0.45);
+  --hairline: rgba(255, 255, 255, 0.1);
 
-  --gold: #d8b25a;
-  --gold-soft: #e6c97f;
+  --gold: #e3bc5c;
+  --gold-soft: #f0ce78;
+  --gold-glow: rgba(201, 154, 56, 0.5);
 
-  --caller: #4a7fb8;
-  --responder: #5a9070;
-  --unison: #232733;
-  --unison-ink: #ece7da;
+  --caller: #5e84b8;
+  --responder: #7ba368;
+  --unison: #1c1a33;
+  --unison-ink: #f4eee2;
+
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-strong: rgba(16, 13, 28, 0.84);
 
   --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 8px 20px rgba(0, 0, 0, 0.35);
+    0 14px 38px rgba(0, 0, 0, 0.45);
+
+  --screen-bg: radial-gradient(
+      135% 75% at 50% -8%,
+      #262c52 0%,
+      #161a33 36%,
+      #0a0c18 70%
+    ),
+    radial-gradient(75% 45% at 82% 6%, rgba(96, 64, 140, 0.5), transparent 60%),
+    radial-gradient(95% 55% at 45% 112%, rgba(176, 132, 42, 0.3), transparent 62%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --parchment: #12141b;
-    --parchment-raised: #1b1e27;
-    --ink: #ece7da;
-    --ink-soft: #b3ad9d;
-    --ink-faint: #76798a;
-    --hairline: #2a2d38;
-    --gold: #d8b25a;
-    --gold-soft: #e6c97f;
-    --caller: #4a7fb8;
-    --responder: #5a9070;
-    --unison: #232733;
-    --unison-ink: #ece7da;
+    --parchment: #0a0c18;
+    --parchment-raised: #16182b;
+    --ink: #f4eee2;
+    --ink-soft: rgba(236, 230, 218, 0.62);
+    --ink-faint: rgba(236, 230, 218, 0.45);
+    --hairline: rgba(255, 255, 255, 0.1);
+    --gold: #e3bc5c;
+    --gold-soft: #f0ce78;
+    --gold-glow: rgba(201, 154, 56, 0.5);
+    --caller: #5e84b8;
+    --responder: #7ba368;
+    --unison: #1c1a33;
+    --unison-ink: #f4eee2;
+    --glass: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-strong: rgba(16, 13, 28, 0.84);
     --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
-      0 8px 20px rgba(0, 0, 0, 0.35);
+      0 14px 38px rgba(0, 0, 0, 0.45);
+    --screen-bg: radial-gradient(
+        135% 75% at 50% -8%,
+        #262c52 0%,
+        #161a33 36%,
+        #0a0c18 70%
+      ),
+      radial-gradient(75% 45% at 82% 6%, rgba(96, 64, 140, 0.5), transparent 60%),
+      radial-gradient(
+        95% 55% at 45% 112%,
+        rgba(176, 132, 42, 0.3),
+        transparent 62%
+      );
   }
 }
 
@@ -103,19 +145,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle parchment texture (no kitsch) */
+/* Immersive gradient backdrop (midnight at night, dawn by day) */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.5;
-  background-image: radial-gradient(
-    rgba(176, 131, 39, 0.04) 1px,
-    transparent 1px
-  );
-  background-size: 22px 22px;
+  background: var(--screen-bg);
 }
 
 /* Connective-tissue anchor: prepositions/conjunctions as memory scaffolding */
