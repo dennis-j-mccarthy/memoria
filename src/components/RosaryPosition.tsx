@@ -1,27 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { RosaryDiagram } from "@/components/RosaryDiagram";
 import { BEAD_PRAYERS, type BeadType } from "@/lib/rosary";
 
+function asBeadType(v: string | null): BeadType | null {
+  return v && v in BEAD_PRAYERS ? (v as BeadType) : null;
+}
+
 /**
- * The "Where in the Rosary" accordion (with the interactive bead diagram).
- * Tapping a bead opens its prayer; beads that carry more than one prayer
- * (crucifix, centerpiece, …) reveal a chooser below the accordion instead.
+ * The "Where in the Rosary" map with the interactive bead diagram. Tapping a
+ * bead opens its prayer; beads that carry more than one prayer (crucifix,
+ * centerpiece, …) show a chooser of navigation pills. The chosen bead lives in
+ * the URL (?bead=…) so the chooser stays open — with the current prayer
+ * highlighted — as you hop between the prayers on that bead.
  */
 export function RosaryPosition({ slug, note }: { slug: string; note: string }) {
   const router = useRouter();
-  const [picked, setPicked] = useState<BeadType | null>(null);
+  const params = useSearchParams();
+  const picked = asBeadType(params.get("bead"));
 
   function handlePick(type: BeadType) {
     const prayers = BEAD_PRAYERS[type];
     if (prayers.length === 1) {
-      setPicked(null);
       router.push(`/prayers/${prayers[0].slug}`);
     } else {
-      setPicked(type);
+      // Open the chooser on this page by recording the bead in the URL.
+      router.push(`/prayers/${slug}?bead=${type}`, { scroll: false });
     }
   }
 
@@ -50,7 +56,7 @@ export function RosaryPosition({ slug, note }: { slug: string; note: string }) {
               return (
                 <li key={p.slug}>
                   <Link
-                    href={`/prayers/${p.slug}`}
+                    href={`/prayers/${p.slug}?bead=${picked}`}
                     aria-current={current ? "page" : undefined}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-sans text-sm transition-colors ${
                       current

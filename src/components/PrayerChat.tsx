@@ -6,6 +6,13 @@ import { ConnectiveText } from "@/components/ConnectiveText";
 import { PrayerRecite } from "@/components/PrayerRecite";
 import { useSpeech } from "@/lib/useSpeech";
 import { useAuth } from "@/lib/useAuth";
+import {
+  audioSrc,
+  voiceForSegment,
+  VOICES,
+  DEFAULT_VOICE,
+  type VoiceId,
+} from "@/lib/voice";
 import type { PassageView, SegmentRole, SegmentView } from "@/lib/content";
 
 type Perspective = "CALLER" | "RESPONDER" | "BOTH";
@@ -24,6 +31,7 @@ function buildOverrides(
   const out: Record<string, number[]> = {};
   for (const s of segments) {
     const cur = anchors[s.id];
+    if (!cur) continue;
     const orig = s.connectiveIndices;
     const changed =
       cur.size !== orig.length || orig.some((i) => !cur.has(i));
@@ -45,6 +53,31 @@ export function PrayerChat({ passage }: Props) {
   const [editAnchors, setEditAnchors] = useState(false);
   const { supported, activeKey, playingAll, speak, speakAll, stop } =
     useSpeech();
+
+  // Narration voice, persisted across prayers. The chosen voice "leads";
+  // in call-and-response prayers the Responder lines use the other voice.
+  const [voice, setVoice] = useState<VoiceId>(DEFAULT_VOICE);
+  useEffect(() => {
+    const v = localStorage.getItem("memoria-voice");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time pref load
+    if (v === "onyx" || v === "shimmer") setVoice(v);
+  }, []);
+  const changeVoice = useCallback((v: VoiceId) => {
+    stop();
+    setVoice(v);
+    try {
+      localStorage.setItem("memoria-voice", v);
+    } catch {}
+  }, [stop]);
+  const srcFor = useCallback(
+    (seg: SegmentView) =>
+      audioSrc(
+        passage.slug,
+        seg.order,
+        voiceForSegment(voice, passage.dialogic, seg.role),
+      ),
+    [passage.slug, passage.dialogic, voice],
+  );
 
   // Which words are anchors, per segment — seeded from the curated connective
   // words but editable, and shared between Read and Recite so a change in one
@@ -133,6 +166,7 @@ export function PrayerChat({ passage }: Props) {
 
   const anchorsEdited = passage.segments.some((s) => {
     const cur = anchors[s.id];
+    if (!cur) return false;
     const orig = s.connectiveIndices;
     return cur.size !== orig.length || orig.some((i) => !cur.has(i));
   });
@@ -146,6 +180,7 @@ export function PrayerChat({ passage }: Props) {
     key: s.id,
     text: s.text,
     lang: passage.language,
+    src: srcFor(s),
   }));
 
   return (
@@ -172,11 +207,37 @@ export function PrayerChat({ passage }: Props) {
         ))}
       </div>
 
+      {/* Narration voice */}
+      <div
+        className="mb-6 ml-2 inline-flex items-center gap-2 align-top"
+        role="group"
+        aria-label="Narration voice"
+      >
+        <span className="font-sans text-xs text-ink-faint">Voice</span>
+        <div className="inline-flex rounded-full border border-hairline bg-parchment-raised p-1">
+          {VOICES.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => changeVoice(v.id)}
+              aria-pressed={voice === v.id}
+              className={`rounded-full px-3 py-1 font-sans text-sm transition-colors ${
+                voice === v.id
+                  ? "bg-ink text-parchment-raised"
+                  : "text-ink-soft hover:text-ink"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {mode === "RECITE" ? (
         <PrayerRecite
           passage={passage}
           anchors={anchors}
           onToggleAnchor={toggleAnchor}
+          voice={voice}
         />
       ) : (
         <>
@@ -320,7 +381,7 @@ export function PrayerChat({ passage }: Props) {
               <Bubble role={seg.role} outgoing={outgoing} active={active}>
                 <ConnectiveText
                   text={seg.text}
-                  anchorIndices={[...anchors[seg.id]]}
+                  anchorIndices={[...(anchors[seg.id] ?? seg.connectiveIndices)]}
                   highlight={highlight}
                   onToggleWord={
                     editAnchors ? (idx) => toggleAnchor(seg.id, idx) : undefined
@@ -337,6 +398,7 @@ export function PrayerChat({ passage }: Props) {
                           key: seg.id,
                           text: seg.text,
                           lang: passage.language,
+                          src: srcFor(seg),
                         })
                   }
                 />

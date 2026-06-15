@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useRecognition } from "@/lib/useRecognition";
 import { useSpeech } from "@/lib/useSpeech";
 import { matchSpoken, realWordIndices, toWords } from "@/lib/recite";
+import { audioSrc, voiceForSegment, type VoiceId } from "@/lib/voice";
 import type { PassageView, SegmentRole } from "@/lib/content";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
   /** Anchor word indices per segment, owned by the parent and shared with Read. */
   anchors: Record<string, Set<number>>;
   onToggleAnchor: (segId: string, wordIndex: number) => void;
+  voice: VoiceId;
 }
 
 /** Line-by-line (recite each line once) or build-up (snowball from the top). */
@@ -34,8 +36,15 @@ function coverage(realIdx: number[], heard: Set<number>): number {
  *     top, then 1–3, … adding a line each round until you have the whole thing.
  * Tap any word to toggle it as an anchor.
  */
-export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
+export function PrayerRecite({
+  passage,
+  anchors,
+  onToggleAnchor,
+  voice,
+}: Props) {
   const segments = passage.segments;
+  const srcFor = (seg: { order: number; role: string }) =>
+    audioSrc(passage.slug, seg.order, voiceForSegment(voice, passage.dialogic, seg.role));
 
   const words = useMemo(
     () => Object.fromEntries(segments.map((s) => [s.id, toWords(s.text)])),
@@ -271,6 +280,7 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
       key: segments[li].id,
       text: segments[li].text,
       lang: passage.language,
+      src: srcFor(segments[li]),
     }));
     speech.speakAll(items);
   }
@@ -369,7 +379,7 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
               >
                 <MaskedLine
                   words={words[seg.id]}
-                  anchorSet={anchors[seg.id]}
+                  anchorSet={anchors[seg.id] ?? new Set()}
                   heardSet={heard[seg.id]}
                   done={isDone}
                   onToggleWord={(idx) => onToggleAnchor(seg.id, idx)}
@@ -402,6 +412,7 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
                             key: seg.id,
                             text: seg.text,
                             lang: passage.language,
+                            src: srcFor(seg),
                           })
                     }
                     className="rounded-full border border-hairline px-3 py-1.5 font-sans text-sm text-ink-soft transition-colors hover:border-gold/40 hover:text-gold"

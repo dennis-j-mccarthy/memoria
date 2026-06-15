@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -35,7 +36,11 @@ export default async function PrayerPage({
           </Link>
         </div>
 
-        {beads && <RosaryPosition slug={slug} note={beads} />}
+        {beads && (
+          <Suspense fallback={null}>
+            <RosaryPosition slug={slug} note={beads} />
+          </Suspense>
+        )}
 
         <header className="mb-8 text-center">
           <h1 className="font-serif text-4xl text-ink sm:text-5xl">
@@ -52,7 +57,9 @@ export default async function PrayerPage({
           </p>
         </header>
 
-        <PrayerChat passage={passage} />
+        {/* key on slug forces a fresh mount when navigating prayer→prayer
+            (e.g. via the rosary bead pills), so per-passage state resets. */}
+        <PrayerChat key={passage.slug} passage={passage} />
       </main>
     </>
   );
