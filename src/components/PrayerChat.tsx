@@ -24,23 +24,6 @@ interface Props {
   passage: PassageView;
 }
 
-/** Anchor overrides to persist: only segments edited away from their default. */
-function buildOverrides(
-  segments: SegmentView[],
-  anchors: Record<string, Set<number>>,
-): Record<string, number[]> {
-  const out: Record<string, number[]> = {};
-  for (const s of segments) {
-    const cur = anchors[s.id];
-    if (!cur) continue;
-    const orig = s.connectiveIndices;
-    const changed =
-      cur.size !== orig.length || orig.some((i) => !cur.has(i));
-    if (changed) out[s.id] = [...cur].sort((a, b) => a - b);
-  }
-  return out;
-}
-
 /**
  * Renders a passage as an iMessage-style conversation (spec section 2).
  * Caller (V.) = blue, Responder (R.) = green, single-voice = neutral. The
@@ -60,11 +43,6 @@ export function PrayerChat({ passage }: Props) {
     Object.fromEntries(passage.segments.map((s) => [s.id, s.role])),
   );
   const roleOf = (seg: SegmentView): SegmentRole => roles[seg.id] ?? seg.role;
-  const cycleRole = (segId: string) =>
-    setRoles((prev) => ({
-      ...prev,
-      [segId]: prev[segId] === "CALLER" ? "RESPONDER" : "CALLER",
-    }));
   const { supported, activeKey, playingAll, speak, speakAll, stop } =
     useSpeech();
 
@@ -105,49 +83,39 @@ export function PrayerChat({ passage }: Props) {
   const { user } = useAuth();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
-  // Mirror anchors into a ref so the debounced save reads the latest value.
+  // Mirror anchors + roles into refs so the debounced save reads the latest.
   const anchorsRef = useRef(anchors);
   useEffect(() => {
     anchorsRef.current = anchors;
   }, [anchors]);
-
-  // Load this user's saved overrides once (returns {} for signed-out readers).
+  const rolesRef = useRef(roles);
   useEffect(() => {
-    let active = true;
-    fetch(`/api/passages/${passage.slug}/anchors`)
-      .then((r) => r.json())
-      .then((d) => {
-        const ov = d?.overrides as Record<string, number[]> | undefined;
-        if (!active || !ov || Object.keys(ov).length === 0) return;
-        setAnchors((prev) => {
-          const next = { ...prev };
-          for (const [segId, idxs] of Object.entries(ov)) {
-            if (next[segId]) next[segId] = new Set(idxs);
-          }
-          return next;
-        });
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [passage.slug]);
+    rolesRef.current = roles;
+  }, [roles]);
 
-  // Debounced save of the override diff. Anonymous edits stay in-session (the
-  // sign-in nudge handles messaging); only signed-in changes hit the API.
+  // Debounced save of the canonical prayer content (anchors + roles). Edits are
+  // the default for everyone; the API gates this to signed-in users and
+  // revalidates the page. Signed-out edits stay in-session (nudge shown).
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduleSave = useCallback(() => {
+  const saveContent = useCallback(() => {
     if (!user) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveStatus("saving");
     saveTimer.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/passages/${passage.slug}/anchors`, {
+        const anchorsPayload = Object.fromEntries(
+          passage.segments.map((s) => [
+            s.id,
+            [...(anchorsRef.current[s.id] ?? [])],
+          ]),
+        );
+        const rolesPayload = Object.fromEntries(
+          passage.segments.map((s) => [s.id, rolesRef.current[s.id] ?? s.role]),
+        );
+        const res = await fetch(`/api/passages/${passage.slug}/content`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            overrides: buildOverrides(passage.segments, anchorsRef.current),
-          }),
+          body: JSON.stringify({ anchors: anchorsPayload, roles: rolesPayload }),
         });
         setSaveStatus(res.ok ? "saved" : "error");
       } catch {
@@ -164,9 +132,20 @@ export function PrayerChat({ passage }: Props) {
         else set.add(wordIndex);
         return { ...prev, [segId]: set };
       });
-      scheduleSave();
+      saveContent();
     },
-    [scheduleSave],
+    [saveContent],
+  );
+
+  const cycleRole = useCallback(
+    (segId: string) => {
+      setRoles((prev) => ({
+        ...prev,
+        [segId]: prev[segId] === "CALLER" ? "RESPONDER" : "CALLER",
+      }));
+      saveContent();
+    },
+    [saveContent],
   );
 
   const resetAnchors = useCallback(() => {
@@ -175,8 +154,8 @@ export function PrayerChat({ passage }: Props) {
         passage.segments.map((s) => [s.id, new Set(s.connectiveIndices)]),
       ),
     );
-    scheduleSave();
-  }, [passage.segments, scheduleSave]);
+    saveContent();
+  }, [passage.segments, saveContent]);
 
   const anchorsEdited = passage.segments.some((s) => {
     const cur = anchors[s.id];
@@ -423,34 +402,18 @@ export function PrayerChat({ passage }: Props) {
 
         {anchorMode === "edit" && (
           <p className="mt-3 font-sans text-xs text-ink-faint">
-            Tap a word above to add or remove its gold anchor. Your choices
-            carry into Practice and Icons.{" "}
-            {user ? (
-              <span className="text-ink-soft">
-                {saveStatus === "saving"
-                  ? "· Saving…"
-                  : saveStatus === "saved"
-                    ? "· Saved"
-                    : saveStatus === "error"
-                      ? "· Couldn’t save — check your connection"
-                      : ""}
-              </span>
-            ) : (
-              <Link
-                href={`/signin?redirect=/prayers/${passage.slug}`}
-                className="text-gold underline-offset-2 hover:underline"
-              >
-                Sign in to save them across devices.
-              </Link>
-            )}
+            Tap a word above to add or remove its gold anchor. Edits become the
+            prayer’s default for everyone.{" "}
+            <SaveNote user={!!user} status={saveStatus} slug={passage.slug} />
           </p>
         )}
 
         {editRoles && (
           <p className="mt-3 font-sans text-xs text-ink-faint">
             Tap a line’s <span className="text-ink-soft">V·/R·</span> badge to
-            switch it between Leader and Response. Changes apply for this
-            session.
+            switch it between Leader and Response — bubble colour and voice
+            follow. Edits become the prayer’s default for everyone.{" "}
+            <SaveNote user={!!user} status={saveStatus} slug={passage.slug} />
           </p>
         )}
       </div>
@@ -539,6 +502,38 @@ function PlayButton({
         </svg>
       )}
     </button>
+  );
+}
+
+function SaveNote({
+  user,
+  status,
+  slug,
+}: {
+  user: boolean;
+  status: SaveStatus;
+  slug: string;
+}) {
+  if (!user) {
+    return (
+      <Link
+        href={`/signin?redirect=/prayers/${slug}`}
+        className="text-gold underline-offset-2 hover:underline"
+      >
+        Sign in to save your edits.
+      </Link>
+    );
+  }
+  return (
+    <span className="text-ink-soft">
+      {status === "saving"
+        ? "· Saving…"
+        : status === "saved"
+          ? "· Saved"
+          : status === "error"
+            ? "· Couldn’t save — check your connection"
+            : ""}
+    </span>
   );
 }
 
