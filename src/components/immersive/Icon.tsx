@@ -20,6 +20,7 @@ const PATHS: Record<string, string[]> = {
   moon: ["M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5Z"],
   check: ["M5 12l5 5 9-10"],
   pray: ["M12 4c-2 4-3 7-3 10l3 3 3-3c0-3-1-6-3-10Z", "M9 14l-2 1.5M15 14l2 1.5"],
+  edit: ["M4 20l4-1L18.5 7.5l-3-3L5 16l-1 4z", "M13.5 6.5l3 3"],
 };
 
 // Icons with circles need bespoke rendering.

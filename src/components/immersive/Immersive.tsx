@@ -399,7 +399,14 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
           <div style={{ letterSpacing: ".22em", textTransform: "uppercase", fontSize: 10.5, color: "var(--ink-faint)", fontWeight: 700 }}>
             {p.section}
           </div>
-          <div style={{ width: 38 }} />
+          <a
+            href={`/prayers/${p.slug}`}
+            aria-label="Edit anchors & roles"
+            title="Edit anchors & roles"
+            style={glass({ width: 38, height: 38, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink)" })}
+          >
+            <Icon name="edit" size={17} color="currentColor" />
+          </a>
         </div>
 
         {/* Halo */}
