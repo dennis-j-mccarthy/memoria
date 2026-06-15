@@ -17,6 +17,7 @@ import type { PassageView, SegmentRole, SegmentView } from "@/lib/content";
 
 type Perspective = "CALLER" | "RESPONDER" | "BOTH";
 type Mode = "READ" | "RECITE" | "ICONS";
+type AnchorMode = "hide" | "show" | "edit";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface Props {
@@ -171,6 +172,17 @@ export function PrayerChat({ passage }: Props) {
     return cur.size !== orig.length || orig.some((i) => !cur.has(i));
   });
 
+  // Collapse the two anchor toggles (show + edit) into one 3-way control.
+  const anchorMode: AnchorMode = !highlight
+    ? "hide"
+    : editAnchors
+      ? "edit"
+      : "show";
+  function setAnchorMode(m: AnchorMode) {
+    setHighlight(m !== "hide");
+    setEditAnchors(m === "edit");
+  }
+
   function isOutgoing(role: SegmentRole): boolean {
     if (perspective === "BOTH") return role === "RESPONDER";
     return role === perspective;
@@ -185,42 +197,45 @@ export function PrayerChat({ passage }: Props) {
 
   return (
     <div>
-      {/* Read / Recite mode */}
-      <div
-        className="mb-6 inline-flex rounded-full border border-hairline bg-parchment-raised p-1"
-        role="group"
-        aria-label="Choose a mode"
-      >
-        {(["READ", "RECITE", "ICONS"] as Mode[]).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            aria-pressed={mode === m}
-            className={`rounded-full px-4 py-1 font-sans text-sm transition-colors ${
-              mode === m
-                ? "bg-ink text-parchment-raised"
-                : "text-ink-soft hover:text-ink"
-            }`}
-          >
-            {m === "READ" ? "Read" : m === "RECITE" ? "Recite" : "Icons"}
-          </button>
-        ))}
-      </div>
+      {/* Mode + voice */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div
+          className="inline-flex rounded-full border border-hairline bg-parchment-raised p-1"
+          role="group"
+          aria-label="Mode"
+        >
+          {(["READ", "RECITE", "ICONS"] as Mode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              aria-pressed={mode === m}
+              className={`rounded-full px-3.5 py-1 font-sans text-sm transition-colors ${
+                mode === m
+                  ? "bg-ink text-parchment-raised"
+                  : "text-ink-soft hover:text-ink"
+              }`}
+            >
+              {m === "READ"
+                ? "Read / Listen"
+                : m === "RECITE"
+                  ? "Practice"
+                  : "Icons"}
+            </button>
+          ))}
+        </div>
 
-      {/* Narration voice */}
-      <div
-        className="mb-6 ml-2 inline-flex items-center gap-2 align-top"
-        role="group"
-        aria-label="Narration voice"
-      >
-        <span className="font-sans text-xs text-ink-faint">Voice</span>
-        <div className="inline-flex rounded-full border border-hairline bg-parchment-raised p-1">
+        <div
+          className="inline-flex items-center gap-1 rounded-full border border-hairline bg-parchment-raised py-1 pl-2.5 pr-1 text-ink-faint"
+          role="group"
+          aria-label="Narration voice"
+        >
+          <SpeakerIcon />
           {VOICES.map((v) => (
             <button
               key={v.id}
               onClick={() => changeVoice(v.id)}
               aria-pressed={voice === v.id}
-              className={`rounded-full px-3 py-1 font-sans text-sm transition-colors ${
+              className={`rounded-full px-2.5 py-0.5 font-sans text-sm transition-colors ${
                 voice === v.id
                   ? "bg-ink text-parchment-raised"
                   : "text-ink-soft hover:text-ink"
@@ -242,106 +257,81 @@ export function PrayerChat({ passage }: Props) {
         />
       ) : (
         <>
-      {/* Controls */}
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        {supported && (
-          <button
-            onClick={() => (playingAll ? stop() : speakAll(speechItems))}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-sans text-sm font-medium transition-colors ${
-              playingAll
-                ? "bg-gold text-parchment-raised"
-                : "bg-ink text-parchment-raised hover:opacity-90"
-            }`}
-          >
-            {playingAll ? (
-              <>
-                <StopIcon /> Stop
-              </>
-            ) : (
-              <>
-                <PlayIcon /> Hear the prayer
-              </>
-            )}
-          </button>
-        )}
-
-        {passage.dialogic && (
-          <div
-            className="inline-flex rounded-full border border-hairline bg-parchment-raised p-1"
-            role="group"
-            aria-label="Choose your role"
-          >
-            {(["CALLER", "RESPONDER", "BOTH"] as Perspective[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setPerspective(r)}
-                className={`rounded-full px-3 py-1 font-sans text-sm transition-colors ${
-                  perspective === r
-                    ? "bg-ink text-parchment-raised"
-                    : "text-ink-soft hover:text-ink"
-                }`}
-              >
-                {r === "CALLER"
-                  ? "Caller (V.)"
-                  : r === "RESPONDER"
-                    ? "Responder (R.)"
-                    : "Both"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {passage.dialogic && perspective !== "BOTH" && (
-          <button
-            onClick={() =>
-              setPerspective(perspective === "CALLER" ? "RESPONDER" : "CALLER")
-            }
-            className="rounded-full border border-hairline px-3 py-1 font-sans text-sm text-ink-soft transition-colors hover:border-gold/40 hover:text-gold"
-          >
-            ⇄ Flip sides
-          </button>
-        )}
-
+      {/* Primary action: hear the whole prayer */}
+      {supported && (
         <button
-          onClick={() => setHighlight((h) => !h)}
-          aria-pressed={highlight}
-          className={`rounded-full border px-3 py-1 font-sans text-sm transition-colors ${
-            highlight
-              ? "border-gold/40 text-gold"
-              : "border-hairline text-ink-soft hover:text-ink"
+          onClick={() => (playingAll ? stop() : speakAll(speechItems))}
+          className={`mb-5 inline-flex items-center gap-2 rounded-full px-5 py-2 font-sans text-sm font-medium transition-colors ${
+            playingAll
+              ? "bg-gold text-parchment-raised"
+              : "bg-ink text-parchment-raised hover:opacity-90"
           }`}
         >
-          {highlight ? "Anchors on" : "Anchors off"}
+          {playingAll ? (
+            <>
+              <StopIcon /> Stop
+            </>
+          ) : (
+            <>
+              <PlayIcon /> Hear the whole prayer
+            </>
+          )}
         </button>
+      )}
 
-        {highlight && (
-          <button
-            onClick={() => setEditAnchors((e) => !e)}
-            aria-pressed={editAnchors}
-            className={`rounded-full border px-3 py-1 font-sans text-sm transition-colors ${
-              editAnchors
-                ? "border-gold bg-gold/10 text-gold"
-                : "border-hairline text-ink-soft hover:text-ink"
-            }`}
-          >
-            {editAnchors ? "Done editing" : "Edit anchors"}
-          </button>
+      {/* Reading options, clearly grouped and labelled */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+        {passage.dialogic && (
+          <Labeled label="Voices">
+            {(["CALLER", "RESPONDER", "BOTH"] as Perspective[]).map((r) => (
+              <Segment
+                key={r}
+                active={perspective === r}
+                onClick={() => setPerspective(r)}
+              >
+                {r === "CALLER"
+                  ? "Leader"
+                  : r === "RESPONDER"
+                    ? "Response"
+                    : "Both"}
+              </Segment>
+            ))}
+          </Labeled>
         )}
 
-        {editAnchors && anchorsEdited && (
-          <button
-            onClick={resetAnchors}
-            className="rounded-full border border-hairline px-3 py-1 font-sans text-sm text-ink-soft transition-colors hover:border-gold/40 hover:text-gold"
-          >
-            ↺ Reset
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <Labeled label="Anchors">
+            {(
+              [
+                ["hide", "Hide"],
+                ["show", "Show"],
+                ["edit", "Edit"],
+              ] as [AnchorMode, string][]
+            ).map(([am, label]) => (
+              <Segment
+                key={am}
+                active={anchorMode === am}
+                onClick={() => setAnchorMode(am)}
+              >
+                {label}
+              </Segment>
+            ))}
+          </Labeled>
+          {anchorMode === "edit" && anchorsEdited && (
+            <button
+              onClick={resetAnchors}
+              className="font-sans text-sm text-ink-faint underline-offset-2 transition-colors hover:text-gold hover:underline"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
-      {editAnchors && (
+      {anchorMode === "edit" && (
         <p className="-mt-3 mb-5 font-sans text-xs text-ink-faint">
-          Tap a word to add or remove it as a gold anchor. Your changes carry
-          into Recite mode.{" "}
+          Tap a word to add or remove its gold anchor. Your choices carry into
+          Practice and Icons.{" "}
           {user ? (
             <span className="text-ink-soft">
               {saveStatus === "saving"
@@ -503,5 +493,71 @@ function StopIcon() {
     <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
       <rect x="2.5" y="2.5" width="7" height="7" rx="1.2" />
     </svg>
+  );
+}
+
+function SpeakerIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+      <path
+        d="M8 2.8 4.6 5.5H2.2v5h2.4L8 13.2z"
+        fill="currentColor"
+      />
+      <path
+        d="M10.6 5.6a3.2 3.2 0 0 1 0 4.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** A small labelled segmented-control group used in the reading options. */
+function Labeled({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="font-sans text-xs uppercase tracking-[0.15em] text-ink-faint">
+        {label}
+      </span>
+      <div
+        className="inline-flex rounded-full border border-hairline bg-parchment-raised p-1"
+        role="group"
+        aria-label={label}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Segment({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full px-3 py-1 font-sans text-sm transition-colors ${
+        active
+          ? "bg-ink text-parchment-raised"
+          : "text-ink-soft hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
