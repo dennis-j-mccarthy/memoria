@@ -148,6 +148,20 @@ export function PrayerChat({ passage }: Props) {
     [saveContent],
   );
 
+  // Role editing uses an explicit Edit → Cancel / Save flow. Edits still save
+  // live; Cancel reverts to the snapshot taken when editing began.
+  const rolesSnapshot = useRef<Record<string, SegmentRole>>({});
+  const startEditRoles = useCallback(() => {
+    rolesSnapshot.current = { ...rolesRef.current };
+    setEditRoles(true);
+  }, []);
+  const cancelRoles = useCallback(() => {
+    setRoles(rolesSnapshot.current);
+    saveContent();
+    setEditRoles(false);
+  }, [saveContent]);
+  const saveRoles = useCallback(() => setEditRoles(false), []);
+
   const resetAnchors = useCallback(() => {
     setAnchors(
       Object.fromEntries(
@@ -356,16 +370,34 @@ export function PrayerChat({ passage }: Props) {
       <div className="mt-8 border-t border-hairline pt-5">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           {passage.dialogic && (
-            <Labeled label="Roles">
-              <Segment active={!editRoles} onClick={() => setEditRoles(false)}>
-                View
-              </Segment>
-              <Segment active={editRoles} onClick={() => setEditRoles(true)}>
-                <span className="inline-flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="font-sans text-xs uppercase tracking-[0.15em] text-ink-faint">
+                Roles
+              </span>
+              {!editRoles ? (
+                <button
+                  onClick={startEditRoles}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-parchment-raised px-3 py-1 font-sans text-sm text-ink-soft transition-colors hover:text-ink"
+                >
                   <PencilIcon /> Edit
-                </span>
-              </Segment>
-            </Labeled>
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={cancelRoles}
+                    className="rounded-full border border-hairline px-3 py-1 font-sans text-sm text-ink-soft transition-colors hover:text-ink"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveRoles}
+                    className="rounded-full bg-ink px-3 py-1 font-sans text-sm text-parchment-raised transition-opacity hover:opacity-90"
+                  >
+                    Save
+                  </button>
+                </>
+              )}
+            </div>
           )}
 
           <div className="flex items-center gap-2">
