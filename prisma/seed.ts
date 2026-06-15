@@ -42,6 +42,7 @@ interface SeedSegment {
 interface SeedPassage {
   slug: string;
   title: string;
+  set: string; // content-set slug this prayer belongs to
   source?: string;
   language?: string; // defaults "en"
   tier?: number; // defaults 1
@@ -51,10 +52,29 @@ interface SeedPassage {
   lines: SeedSegment[];
 }
 
+// Content sets shown as categories on the home page (ordered by sortOrder).
+const SETS = [
+  {
+    slug: "the-rosary",
+    title: "The Rosary",
+    description:
+      "Every prayer of the Holy Rosary, in the order you pray them — from the Sign of the Cross to the Hail Holy Queen — plus the Joyful Mysteries.",
+    sortOrder: 0,
+  },
+  {
+    slug: "catholic-prayers",
+    title: "Prayers & Devotions",
+    description:
+      "Foundational prayers and devotions of the Catholic tradition, marked up for recitation practice.",
+    sortOrder: 1,
+  },
+];
+
 const PRAYERS: SeedPassage[] = [
   {
     slug: "sign-of-the-cross",
     title: "Sign of the Cross",
+    set: "the-rosary",
     tags: ["foundational", "blessing"],
     popularity: 100,
     lines: [
@@ -65,6 +85,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "our-father",
     title: "Our Father",
+    set: "the-rosary",
     source: "The Lord's Prayer (traditional English)",
     tags: ["foundational", "lords-prayer"],
     popularity: 99,
@@ -86,6 +107,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "hail-mary",
     title: "Hail Mary",
+    set: "the-rosary",
     tags: ["foundational", "marian"],
     popularity: 98,
     dialogic: true,
@@ -103,6 +125,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "glory-be",
     title: "Glory Be",
+    set: "the-rosary",
     source: "Doxology (Gloria Patri, English)",
     tags: ["foundational", "doxology"],
     popularity: 95,
@@ -120,6 +143,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "grace-before-meals",
     title: "Grace Before Meals",
+    set: "catholic-prayers",
     source: '"Bless us, O Lord" (traditional)',
     tags: ["foundational", "meal", "connective-showcase"],
     popularity: 90,
@@ -133,6 +157,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "guardian-angel-prayer",
     title: "Guardian Angel Prayer",
+    set: "catholic-prayers",
     tags: ["foundational", "angelic"],
     popularity: 88,
     lines: [
@@ -146,6 +171,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "act-of-contrition",
     title: "Act of Contrition",
+    set: "catholic-prayers",
     source: "Traditional form",
     tags: ["foundational", "penitential"],
     popularity: 85,
@@ -162,6 +188,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "apostles-creed",
     title: "Apostles' Creed",
+    set: "the-rosary",
     source: "Roman Missal, 3rd ed. (current ICEL/USCCB translation)",
     tier: 2,
     tags: ["creed", "profession-of-faith"],
@@ -192,6 +219,7 @@ const PRAYERS: SeedPassage[] = [
   {
     slug: "the-angelus",
     title: "The Angelus",
+    set: "catholic-prayers",
     source: "Traditional (V./R. throughout)",
     tier: 2,
     tags: ["marian", "dialogic", "call-and-response"],
@@ -228,32 +256,110 @@ const PRAYERS: SeedPassage[] = [
       { role: "RESPONDER", text: "Amen." },
     ],
   },
+  {
+    slug: "o-my-jesus",
+    title: "O My Jesus",
+    set: "the-rosary",
+    source: "The Fatima Prayer (said after each Glory Be)",
+    tags: ["marian", "fatima", "rosary"],
+    popularity: 93,
+    lines: [
+      { text: "O my Jesus, forgive us our sins," },
+      { text: "save us from the fires of hell," },
+      { text: "lead all souls to Heaven," },
+      { text: "especially those most in need of thy mercy." },
+    ],
+  },
+  {
+    slug: "hail-holy-queen",
+    title: "Hail, Holy Queen",
+    set: "the-rosary",
+    source: "Salve Regina (English) — concludes the Rosary",
+    tier: 2,
+    tags: ["marian", "rosary"],
+    popularity: 92,
+    lines: [
+      { text: "Hail, holy Queen, Mother of mercy," },
+      { text: "our life, our sweetness, and our hope." },
+      { text: "To thee do we cry," },
+      { text: "poor banished children of Eve." },
+      { text: "To thee do we send up our sighs," },
+      { text: "mourning and weeping in this valley of tears." },
+      { text: "Turn then, most gracious advocate," },
+      { text: "thine eyes of mercy toward us," },
+      { text: "and after this our exile," },
+      { text: "show unto us the blessed fruit of thy womb, Jesus." },
+      { text: "O clement, O loving, O sweet Virgin Mary." },
+    ],
+  },
+  {
+    slug: "joyful-mysteries",
+    title: "The Joyful Mysteries",
+    set: "the-rosary",
+    source: "Prayed on Mondays and Saturdays",
+    tags: ["marian", "rosary", "mysteries"],
+    popularity: 91,
+    lines: [
+      { text: "The Annunciation" },
+      { text: "The Visitation" },
+      { text: "The Nativity" },
+      { text: "The Presentation in the Temple" },
+      { text: "The Finding of Jesus in the Temple" },
+    ],
+  },
+  {
+    slug: "concluding-prayer",
+    title: "O God, Whose Only Begotten Son",
+    set: "the-rosary",
+    source: "Concluding Prayer of the Holy Rosary",
+    tier: 2,
+    tags: ["marian", "rosary", "collect"],
+    popularity: 70,
+    lines: [
+      { text: "O God, whose only begotten Son," },
+      { text: "by his life, death, and resurrection," },
+      { text: "has purchased for us the rewards of eternal life;" },
+      { text: "grant, we beseech thee," },
+      { text: "that meditating upon these mysteries" },
+      { text: "of the most holy Rosary of the Blessed Virgin Mary," },
+      { text: "we may imitate what they contain" },
+      { text: "and obtain what they promise," },
+      { text: "through the same Christ our Lord." },
+      { text: "Amen." },
+    ],
+  },
 ];
 
 async function main() {
-  console.log("Seeding Catholic Prayers (Tier 1)…");
+  console.log("Seeding prayers…");
 
-  const set = await db.contentSet.upsert({
-    where: { slug: "catholic-prayers" },
-    create: {
-      slug: "catholic-prayers",
-      title: "Catholic Prayers",
-      description:
-        "The flagship content set: foundational prayers of the Catholic tradition, marked up for recitation practice.",
-      sortOrder: 0,
-    },
-    update: {
-      title: "Catholic Prayers",
-      description:
-        "The flagship content set: foundational prayers of the Catholic tradition, marked up for recitation practice.",
-    },
-  });
+  // Upsert content sets and index them by slug.
+  const setIdBySlug: Record<string, string> = {};
+  for (const s of SETS) {
+    const set = await db.contentSet.upsert({
+      where: { slug: s.slug },
+      create: {
+        slug: s.slug,
+        title: s.title,
+        description: s.description,
+        sortOrder: s.sortOrder,
+      },
+      update: {
+        title: s.title,
+        description: s.description,
+        sortOrder: s.sortOrder,
+      },
+    });
+    setIdBySlug[s.slug] = set.id;
+  }
 
   for (const p of PRAYERS) {
+    const contentSetId = setIdBySlug[p.set];
+    if (!contentSetId) throw new Error(`Unknown set "${p.set}" for ${p.slug}`);
     const passage = await db.passage.upsert({
       where: { slug: p.slug },
       create: {
-        contentSetId: set.id,
+        contentSetId,
         slug: p.slug,
         title: p.title,
         source: p.source,
@@ -264,8 +370,10 @@ async function main() {
         dialogic: p.dialogic ?? false,
       },
       update: {
+        contentSetId,
         title: p.title,
         source: p.source,
+        tier: p.tier ?? 1,
         tags: JSON.stringify(p.tags ?? []),
         popularity: p.popularity ?? 0,
         dialogic: p.dialogic ?? false,
