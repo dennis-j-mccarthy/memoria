@@ -107,6 +107,8 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   const [exercise, setExercise] = useState<"recite" | "type">("recite");
   const [anchorsOn, setAnchorsOn] = useState(true);
   const [reciteAnchors, setReciteAnchors] = useState<Record<string, Set<number>>>({});
+  const [lineIdx, setLineIdx] = useState(0); // current line in the typing test
+  const [lineResults, setLineResults] = useState<{ ok: number; total: number }[]>([]);
 
   const cur = byId[pid] ?? prayers[0];
 
@@ -167,6 +169,16 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     setReciteAnchors(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on these
   }, [pid, anchorsOn, route]);
+
+  const resetTyping = () => {
+    setLineIdx(0);
+    setLineResults([]);
+    setTyped("");
+  };
+  const changeExercise = (e: "recite" | "type") => {
+    setExercise(e);
+    resetTyping();
+  };
 
   const toggleReciteAnchor = (segId: string, wi: number) =>
     setReciteAnchors((prev) => {
@@ -262,8 +274,10 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     stopPlay();
     setEditing(false);
     setDraft(null);
-    setTyped("");
     setActiveLine(-1);
+    setLineIdx(0);
+    setLineResults([]);
+    setTyped("");
     if (id) setPid(id);
     setRoute(r);
   };
@@ -751,24 +765,6 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   }
 
   // ---- PRACTICE ----------------------------------------------------------
-  function practiceState() {
-    const raw = typed;
-    const endsSp = /\s$/.test(raw);
-    const tw = raw.split(/\s+/).filter(Boolean);
-    const committed = endsSp ? tw.length : Math.max(0, tw.length - 1);
-    const tgt: { t: string; a: boolean }[] = [];
-    cur.lines.forEach((ln) => {
-      ln.text.split(/\s+/).filter(Boolean).forEach((w, wi) => {
-        tgt.push({ t: w, a: ln.anchors.includes(wi) });
-      });
-    });
-    let ok = 0;
-    for (let i = 0; i < committed && i < tgt.length; i++) {
-      if (norm(tw[i]) === norm(tgt[i].t)) ok++;
-    }
-    return { tw, committed, tgt, ok, done: committed >= tgt.length && tgt.length > 0 };
-  }
-
   function exerciseBar() {
     const pill = (active: boolean, onClick: () => void, label: string) => (
       <button
@@ -790,8 +786,8 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
         <div style={{ display: "inline-flex", borderRadius: 999, border: "1px solid var(--glass-border)", background: "var(--glass)", padding: 3 }}>
-          {pill(exercise === "recite", () => setExercise("recite"), "Recite")}
-          {pill(exercise === "type", () => setExercise("type"), "Type")}
+          {pill(exercise === "recite", () => changeExercise("recite"), "Recite")}
+          {pill(exercise === "type", () => changeExercise("type"), "Type")}
         </div>
         <button
           onClick={() => setAnchorsOn((a) => !a)}
@@ -845,50 +841,94 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
       );
     }
 
-    // ---- Type (recitation typing test) ----
-    const s = practiceState();
-    const acc = s.committed > 0 ? Math.round((s.ok / s.committed) * 100) : 100;
-    const prog = s.tgt.length ? s.committed / s.tgt.length : 0;
+    // ---- Type (one line at a time) ----
+    const tLines = effLines(p);
+    const total = tLines.length;
+    const done = lineIdx >= total;
+    const accTotal = lineResults.reduce((a, r) => a + r.total, 0);
+    const accOk = lineResults.reduce((a, r) => a + r.ok, 0);
+    const acc = accTotal ? Math.round((accOk / accTotal) * 100) : 100;
+    const prog = total ? Math.min(lineIdx, total) / total : 0;
     const R = 26;
     const C = 2 * Math.PI * R;
 
-    const reveal = () => {
-      if (s.done) return;
+    const curLine = done ? null : tLines[lineIdx];
+    const tgtW = curLine ? curLine.text.split(/\s+/).filter(Boolean) : [];
+    const tw = typed.split(/\s+/).filter(Boolean);
+    const committed = /\s$/.test(typed) ? tw.length : Math.max(0, tw.length - 1);
+
+    // Commit on space; when the whole line is typed, score it and advance.
+    const onType = (value: string) => {
+      const ends = /\s$/.test(value);
+      const words = value.split(/\s+/).filter(Boolean);
+      const comm = ends ? words.length : Math.max(0, words.length - 1);
+      if (tgtW.length > 0 && comm >= tgtW.length) {
+        let ok = 0;
+        for (let i = 0; i < tgtW.length; i++)
+          if (words[i] && norm(words[i]) === norm(tgtW[i])) ok++;
+        setLineResults((r) => [...r, { ok, total: tgtW.length }]);
+        setLineIdx((i) => i + 1);
+        setTyped("");
+      } else {
+        setTyped(value);
+      }
+    };
+    const revealWord = () => {
+      if (!curLine) return;
       const c = typed.replace(/\s+$/, "");
-      setTyped((c.length ? c + " " : "") + s.tgt[s.committed].t + " ");
+      onType((c.length ? c + " " : "") + (tgtW[committed] ?? "") + " ");
+    };
+    const restart = () => {
+      setLineResults([]);
+      setLineIdx(0);
+      setTyped("");
     };
 
-    let gi = 0;
-    const body = p.lines.map((ln, li) => {
+    const body = tLines.map((ln, li) => {
       const ws = ln.text.split(/\s+/).filter(Boolean);
+      const isCur = li === lineIdx && !done;
+      const isPast = li < lineIdx;
       return (
-        <div key={li} style={{ marginBottom: 3 }}>
+        <div key={li} style={{ marginBottom: 7, textAlign: ln.role === "R" ? "right" : "left", opacity: isCur ? 1 : isPast ? 0.7 : 0.5 }}>
           {ws.map((w, wi) => {
-            const idx = gi++;
             const a = ln.anchors.includes(wi);
             let color = "var(--ink-faint)";
             const st: React.CSSProperties = {};
-            if (idx < s.committed) {
-              const okk = s.tw[idx] && norm(s.tw[idx]) === norm(w);
-              if (okk) {
-                color = a ? "var(--gold)" : "var(--ink)";
-                st.fontWeight = a ? 600 : 500;
-                st.fontStyle = a ? "italic" : "normal";
+            if (isPast) {
+              color = a ? "var(--gold)" : "var(--ink-soft)";
+              st.fontStyle = a ? "italic" : "normal";
+              st.fontWeight = a ? 600 : 400;
+            } else if (isCur) {
+              if (wi < committed) {
+                const okk = tw[wi] && norm(tw[wi]) === norm(w);
+                if (okk) {
+                  color = a ? "var(--gold)" : "var(--ink)";
+                  st.fontWeight = a ? 600 : 500;
+                  st.fontStyle = a ? "italic" : "normal";
+                } else {
+                  color = theme === "dark" ? "#E2876A" : "#C0492F";
+                  st.textDecoration = "line-through";
+                }
+              } else if (wi === committed) {
+                color = "var(--ink)";
+                st.borderBottom = "2px solid var(--gold)";
+              } else if (anchorsOn && a) {
+                color = "var(--gold)";
+                st.fontStyle = "italic";
+                st.opacity = 0.5;
               } else {
-                color = theme === "dark" ? "#E2876A" : "#C0492F";
-                st.textDecoration = "line-through";
+                color = "var(--ink-faint)";
+                st.opacity = 0.3;
               }
-            } else if (idx === s.committed && !s.done) {
-              color = "var(--ink)";
-              st.borderBottom = "2px solid var(--gold)";
-            } else if (anchorsOn && a) {
-              // anchor hint for upcoming words
-              color = "var(--gold)";
-              st.fontStyle = "italic";
-              st.opacity = 0.5;
             } else {
-              color = "var(--ink-faint)";
-              st.opacity = 0.28;
+              if (anchorsOn && a) {
+                color = "var(--gold)";
+                st.fontStyle = "italic";
+                st.opacity = 0.4;
+              } else {
+                color = "var(--ink-faint)";
+                st.opacity = 0.25;
+              }
             }
             return (
               <span key={wi} style={{ color, transition: "color .15s", ...st }}>
@@ -899,7 +939,6 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
         </div>
       );
     });
-
     const display = (
       <div style={{ fontFamily: SERIF, fontSize: 21, lineHeight: 1.5, marginTop: 18 }}>{body}</div>
     );
@@ -918,27 +957,27 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
         <div>
           <div style={{ fontFamily: SERIF, fontSize: 26, color: "var(--ink)", lineHeight: 1 }}>{p.title}</div>
           <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4 }}>
-            {s.committed} / {s.tgt.length} words · {acc}% accurate
+            Line {Math.min(lineIdx + 1, total)} / {total} · {acc}% accurate
           </div>
         </div>
       </div>
     );
 
-    if (s.done) {
+    if (done) {
       const great = acc >= 92;
       return (
         <div style={topPad}>
           {top}
           {exerciseBar()}
           {head}
-          <div style={{ opacity: 0.5 }}>{display}</div>
+          <div style={{ opacity: 0.6 }}>{display}</div>
           <div style={{ marginTop: "auto", textAlign: "center", padding: "24px 0 30px" }}>
             <div style={{ width: 56, height: 56, borderRadius: 999, background: great ? "#5FBD93" : "var(--play-grad)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
               <Icon name="check" size={26} color="#fff" />
             </div>
             <div style={{ fontFamily: SERIF, fontSize: 32, color: "var(--ink)" }}>{great ? "By heart." : "Almost there."}</div>
             <div style={{ color: "var(--ink-soft)", fontSize: 14, marginTop: 2 }}>{acc}% accurate</div>
-            <button onClick={() => setTyped("")} style={{ marginTop: 16, background: "var(--play-grad)", color: "var(--gold-text)", borderRadius: 999, padding: "12px 26px", fontWeight: 600, fontSize: 14, boxShadow: "var(--play-glow)" }}>Practice again</button>
+            <button onClick={restart} style={{ marginTop: 16, background: "var(--play-grad)", color: "var(--gold-text)", borderRadius: 999, padding: "12px 26px", fontWeight: 600, fontSize: 14, boxShadow: "var(--play-glow)" }}>Practice again</button>
           </div>
         </div>
       );
@@ -954,14 +993,14 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
           <div style={{ borderRadius: 22, padding: 14, background: "var(--glass-strong)", border: "1px solid var(--glass-border)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)", boxShadow: "0 16px 38px rgba(0,0,0,.4)" }}>
             <textarea
               value={typed}
-              placeholder="Recite from memory…"
+              placeholder="Type this line…"
               rows={2}
-              onChange={(e) => setTyped(e.target.value)}
+              onChange={(e) => onType(e.target.value)}
               style={{ width: "100%", resize: "none", background: "var(--glass)", border: "1px solid var(--glass-border)", borderRadius: 12, padding: "11px 13px", fontSize: 15, color: "var(--ink)", lineHeight: 1.4, fontFamily: "var(--font-sans), system-ui, sans-serif" }}
             />
             <div style={{ display: "flex", gap: 9, marginTop: 11 }}>
-              <button onClick={reveal} style={{ flex: 1, color: "var(--ink)", border: "1px solid var(--chip-bd)", borderRadius: 999, padding: 9, fontSize: 13, fontWeight: 600, background: "var(--chip-bg)" }}>Reveal word</button>
-              <button onClick={() => setTyped("")} style={{ flex: 1, color: "var(--ink)", border: "1px solid var(--chip-bd)", borderRadius: 999, padding: 9, fontSize: 13, fontWeight: 600, background: "var(--chip-bg)" }}>Restart</button>
+              <button onClick={revealWord} style={{ flex: 1, color: "var(--ink)", border: "1px solid var(--chip-bd)", borderRadius: 999, padding: 9, fontSize: 13, fontWeight: 600, background: "var(--chip-bg)" }}>Reveal word</button>
+              <button onClick={restart} style={{ flex: 1, color: "var(--ink)", border: "1px solid var(--chip-bd)", borderRadius: 999, padding: 9, fontSize: 13, fontWeight: 600, background: "var(--chip-bg)" }}>Restart</button>
             </div>
           </div>
         </div>
