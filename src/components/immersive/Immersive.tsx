@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon, PlayGlyph, PauseGlyph } from "@/components/immersive/Icon";
 import { ImmersiveRosaryMap } from "@/components/immersive/ImmersiveRosaryMap";
-import { PrayerRecite } from "@/components/PrayerRecite";
+import { ImmersiveRecite } from "@/components/immersive/ImmersiveRecite";
 import { audioSrc, type VoiceId } from "@/lib/voice";
 import type { ImmersivePrayer, ImmersiveLine } from "@/lib/immersive";
-import type { PassageView } from "@/lib/content";
 
 type Route = "home" | "library" | "player" | "practice" | "profile";
 type Voices = "leader" | "response" | "both";
@@ -106,7 +105,6 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   // Practice: choose an exercise (recite by voice / type) and show anchors or not.
   const [exercise, setExercise] = useState<"recite" | "type">("recite");
   const [anchorsOn, setAnchorsOn] = useState(true);
-  const [reciteAnchors, setReciteAnchors] = useState<Record<string, Set<number>>>({});
   const [lineIdx, setLineIdx] = useState(0); // current line in the typing test
   const [lineResults, setLineResults] = useState<{ ok: number; total: number }[]>([]);
 
@@ -134,42 +132,6 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     [editing, draft, overrides, pid],
   );
 
-  // Adapt an immersive prayer (with current edits) into the PassageView the
-  // recite engine expects.
-  const toPassageView = useCallback(
-    (p: ImmersivePrayer): PassageView => ({
-      id: p.slug,
-      slug: p.slug,
-      title: p.title,
-      source: p.sub,
-      language: p.language,
-      tier: 1,
-      tags: [],
-      popularity: 0,
-      dialogic: p.cr,
-      segments: effLines(p).map((ln) => ({
-        id: ln.id,
-        order: ln.order,
-        role: ln.role === "R" ? "RESPONDER" : "CALLER",
-        text: ln.text,
-        connectiveIndices: ln.anchors,
-        lociHint: null,
-      })),
-    }),
-    [effLines],
-  );
-
-  // Seed the practice anchors when the prayer / anchors toggle / route changes.
-  useEffect(() => {
-    const next: Record<string, Set<number>> = {};
-    effLines(cur).forEach((ln) => {
-      next[ln.id] = new Set(anchorsOn ? ln.anchors : []);
-    });
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed on prayer/toggle change
-    setReciteAnchors(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on these
-  }, [pid, anchorsOn, route]);
-
   const resetTyping = () => {
     setLineIdx(0);
     setLineResults([]);
@@ -179,14 +141,6 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     setExercise(e);
     resetTyping();
   };
-
-  const toggleReciteAnchor = (segId: string, wi: number) =>
-    setReciteAnchors((prev) => {
-      const set = new Set(prev[segId]);
-      if (set.has(wi)) set.delete(wi);
-      else set.add(wi);
-      return { ...prev, [segId]: set };
-    });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -828,15 +782,11 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
           {top}
           <div style={{ fontFamily: SERIF, fontSize: 30, color: "var(--ink)", marginTop: 16, lineHeight: 1 }}>{p.title}</div>
           {exerciseBar()}
-          <div style={{ marginTop: 18, flex: 1 }}>
-            <PrayerRecite
-              key={`${pid}-${anchorsOn}`}
-              passage={toPassageView(p)}
-              anchors={reciteAnchors}
-              onToggleAnchor={toggleReciteAnchor}
-              voice="onyx"
-            />
-          </div>
+          <ImmersiveRecite
+            key={`${pid}-${anchorsOn}`}
+            prayer={{ ...p, lines: effLines(p) }}
+            anchorsOn={anchorsOn}
+          />
         </div>
       );
     }
