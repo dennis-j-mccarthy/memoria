@@ -30,10 +30,11 @@ const themeScript = `
 (function () {
   try {
     var t = localStorage.getItem('memoria-theme');
-    if (t === 'dark' || t === 'light') {
-      document.documentElement.setAttribute('data-theme', t);
-    }
-  } catch (e) {}
+    // Dark "Candlelight" is the hero look; default to it unless a pref is set.
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
 })();
 `;
 

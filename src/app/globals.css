@@ -30,6 +30,33 @@
   --glass: rgba(255, 255, 255, 0.6);
   --glass-border: rgba(43, 38, 32, 0.1);
   --glass-strong: rgba(252, 247, 237, 0.85);
+  --chip-bg: rgba(255, 255, 255, 0.62);
+  --chip-bd: rgba(43, 38, 32, 0.1);
+
+  --gold-text: #3a2a0c;
+  --play-grad: linear-gradient(150deg, #e8c56b, #c99a38);
+  --play-glow: 0 8px 22px rgba(201, 154, 56, 0.35);
+  --track: rgba(43, 38, 32, 0.13);
+  --icon-grad: linear-gradient(150deg, #ece0c7, #d8c6a2);
+  --icon-stroke: #9a6f1e;
+
+  --leader-bubble: rgba(67, 89, 126, 0.12);
+  --leader-bd: rgba(67, 89, 126, 0.24);
+  --resp-bubble: rgba(88, 107, 75, 0.12);
+  --resp-bd: rgba(88, 107, 75, 0.24);
+  --act-bg: rgba(67, 89, 126, 0.2);
+  --act-bd: rgba(67, 89, 126, 0.5);
+  --act-glow: 0 8px 22px rgba(67, 89, 126, 0.22);
+  --act-ink: #1f2a40;
+  --resp-act-bg: rgba(88, 107, 75, 0.2);
+  --resp-act-bd: rgba(88, 107, 75, 0.5);
+  --resp-act-glow: 0 8px 22px rgba(88, 107, 75, 0.22);
+
+  --feat-grad: linear-gradient(155deg, #efe5d2 0%, #e7dac2 50%, #dfd0b2 100%);
+  --feat-g1: rgba(227, 188, 92, 0.5);
+  --feat-g2: rgba(186, 166, 222, 0.45);
+  --feat-ink: #2b2620;
+  --halo: rgba(201, 154, 56, 0.22);
 
   --bubble-shadow: 0 2px 4px rgba(43, 38, 32, 0.04),
     0 12px 30px rgba(43, 38, 32, 0.07);
@@ -68,6 +95,33 @@
   --glass: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-strong: rgba(16, 13, 28, 0.84);
+  --chip-bg: rgba(255, 255, 255, 0.07);
+  --chip-bd: rgba(255, 255, 255, 0.1);
+
+  --gold-text: #1b130a;
+  --play-grad: linear-gradient(150deg, #f0ce78, #c99a38);
+  --play-glow: 0 10px 28px rgba(201, 154, 56, 0.5);
+  --track: rgba(255, 255, 255, 0.14);
+  --icon-grad: linear-gradient(150deg, #4b4478, #262145);
+  --icon-stroke: #e3bc5c;
+
+  --leader-bubble: rgba(99, 126, 180, 0.16);
+  --leader-bd: rgba(120, 150, 210, 0.26);
+  --resp-bubble: rgba(110, 140, 95, 0.16);
+  --resp-bd: rgba(140, 170, 120, 0.24);
+  --act-bg: rgba(120, 150, 210, 0.34);
+  --act-bd: rgba(150, 178, 235, 0.5);
+  --act-glow: 0 0 28px rgba(120, 150, 210, 0.4);
+  --act-ink: #ffffff;
+  --resp-act-bg: rgba(130, 165, 110, 0.34);
+  --resp-act-bd: rgba(165, 195, 140, 0.5);
+  --resp-act-glow: 0 0 28px rgba(130, 165, 110, 0.4);
+
+  --feat-grad: linear-gradient(155deg, #3a3370 0%, #2a2350 45%, #171430 100%);
+  --feat-g1: rgba(176, 132, 42, 0.55);
+  --feat-g2: rgba(120, 90, 170, 0.5);
+  --feat-ink: #f6f1e6;
+  --halo: rgba(227, 188, 92, 0.28);
 
   --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
     0 14px 38px rgba(0, 0, 0, 0.45);
@@ -254,6 +308,32 @@ body::before {
   color: var(--ink);
   font-style: normal;
   font-weight: 400;
+}
+
+/* Immersive player: halo pulse + active-line caret blink. */
+@keyframes hglow {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@keyframes hblink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse-glow {
