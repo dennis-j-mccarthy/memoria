@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PrayerChat } from "@/components/PrayerChat";
 import { getPassage, getAllPassageSlugs } from "@/lib/content";
-import { ROSARY_BEADS } from "@/lib/rosary";
+import { ROSARY_BEADS, devotionForSlug } from "@/lib/rosary";
 import { RosaryPosition } from "@/components/RosaryPosition";
 
 export async function generateStaticParams() {
@@ -22,6 +22,7 @@ export default async function PrayerPage({
   if (!passage) notFound();
 
   const beads = ROSARY_BEADS[slug];
+  const devotion = devotionForSlug(slug);
 
   return (
     <>
@@ -36,9 +37,9 @@ export default async function PrayerPage({
           </Link>
         </div>
 
-        {beads && (
+        {beads && devotion && (
           <Suspense fallback={null}>
-            <RosaryPosition slug={slug} note={beads} />
+            <RosaryPosition slug={slug} note={beads} devotion={devotion} />
           </Suspense>
         )}
 

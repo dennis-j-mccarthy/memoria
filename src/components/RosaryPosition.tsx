@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RosaryDiagram } from "@/components/RosaryDiagram";
-import { BEAD_PRAYERS, type BeadType } from "@/lib/rosary";
+import {
+  beadPrayers,
+  BEAD_PRAYERS_BY_DEVOTION,
+  type BeadType,
+  type Devotion,
+} from "@/lib/rosary";
 
 function asBeadType(v: string | null): BeadType | null {
-  return v && v in BEAD_PRAYERS ? (v as BeadType) : null;
+  return v && v in BEAD_PRAYERS_BY_DEVOTION.rosary ? (v as BeadType) : null;
 }
 
 /**
@@ -16,13 +21,21 @@ function asBeadType(v: string | null): BeadType | null {
  * the URL (?bead=…) so the chooser stays open — with the current prayer
  * highlighted — as you hop between the prayers on that bead.
  */
-export function RosaryPosition({ slug, note }: { slug: string; note: string }) {
+export function RosaryPosition({
+  slug,
+  note,
+  devotion,
+}: {
+  slug: string;
+  note: string;
+  devotion: Devotion;
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const picked = asBeadType(params.get("bead"));
 
   function handlePick(type: BeadType) {
-    const prayers = BEAD_PRAYERS[type];
+    const prayers = beadPrayers(devotion, type);
     if (prayers.length === 1) {
       router.push(`/prayers/${prayers[0].slug}`);
     } else {
@@ -31,14 +44,21 @@ export function RosaryPosition({ slug, note }: { slug: string; note: string }) {
     }
   }
 
+  const title = devotion === "chaplet" ? "On the chaplet beads" : "Where in the Rosary";
+
   return (
     <div className="mb-6">
       <div className="rounded-xl border border-hairline bg-parchment-raised">
         <p className="flex items-center gap-2 px-4 pt-3 font-sans text-sm font-medium text-ink-soft">
-          <span aria-hidden>📿</span> Where in the Rosary
+          <span aria-hidden>📿</span> {title}
         </p>
         <div className="px-4 pb-4">
-          <RosaryDiagram slug={slug} picked={picked} onPick={handlePick} />
+          <RosaryDiagram
+            slug={slug}
+            devotion={devotion}
+            picked={picked}
+            onPick={handlePick}
+          />
           <p className="mt-2 font-sans text-sm leading-relaxed text-ink-soft">
             {note}
           </p>
@@ -51,7 +71,7 @@ export function RosaryPosition({ slug, note }: { slug: string; note: string }) {
             On this bead — open a prayer
           </p>
           <ul className="mt-2 flex flex-wrap items-center gap-2">
-            {BEAD_PRAYERS[picked].map((p) => {
+            {beadPrayers(devotion, picked).map((p) => {
               const current = p.slug === slug;
               return (
                 <li key={p.slug}>

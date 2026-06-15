@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { BEAD_PRAYERS, ROSARY_HIGHLIGHT, type BeadType } from "@/lib/rosary";
+import {
+  beadPrayers,
+  ROSARY_HIGHLIGHT,
+  type BeadType,
+  type Devotion,
+} from "@/lib/rosary";
 
 /* ------------------------------------------------------------------ *
  * A schematic of a five-decade rosary with the current prayer's
@@ -27,19 +32,22 @@ const LINE = "var(--hairline)";
 const INK = "var(--ink-soft)";
 const PICK = "var(--caller)"; // the bead-type the reader tapped
 
-function titlesFor(type: BeadType): string {
-  return BEAD_PRAYERS[type].map((p) => p.title).join(" · ");
-}
-
 export function RosaryDiagram({
   slug,
+  devotion,
   picked,
   onPick,
 }: {
   slug: string;
+  devotion: Devotion;
   picked: BeadType | null;
   onPick: (type: BeadType) => void;
 }) {
+  const titlesFor = (type: BeadType) =>
+    beadPrayers(devotion, type)
+      .map((p) => p.title)
+      .join(" · ");
+
   const hl = ROSARY_HIGHLIGHT[slug];
   const [hovered, setHovered] = useState<BeadType | null>(null);
   if (!hl) return null;
