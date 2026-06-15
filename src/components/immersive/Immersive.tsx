@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon, PlayGlyph, PauseGlyph } from "@/components/immersive/Icon";
 import { ImmersiveRosaryMap } from "@/components/immersive/ImmersiveRosaryMap";
+import { PrayerRecite } from "@/components/PrayerRecite";
 import { audioSrc, type VoiceId } from "@/lib/voice";
 import type { ImmersivePrayer, ImmersiveLine } from "@/lib/immersive";
+import type { PassageView } from "@/lib/content";
 
 type Route = "home" | "library" | "player" | "practice" | "profile";
 type Voices = "leader" | "response" | "both";
@@ -101,6 +103,11 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   const [typed, setTyped] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
+  // Practice: choose an exercise (recite by voice / type) and show anchors or not.
+  const [exercise, setExercise] = useState<"recite" | "type">("recite");
+  const [anchorsOn, setAnchorsOn] = useState(true);
+  const [reciteAnchors, setReciteAnchors] = useState<Record<string, Set<number>>>({});
+
   const cur = byId[pid] ?? prayers[0];
 
   // ---- inline editing (anchors + roles), saved to canonical content --------
@@ -124,6 +131,50 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     },
     [editing, draft, overrides, pid],
   );
+
+  // Adapt an immersive prayer (with current edits) into the PassageView the
+  // recite engine expects.
+  const toPassageView = useCallback(
+    (p: ImmersivePrayer): PassageView => ({
+      id: p.slug,
+      slug: p.slug,
+      title: p.title,
+      source: p.sub,
+      language: p.language,
+      tier: 1,
+      tags: [],
+      popularity: 0,
+      dialogic: p.cr,
+      segments: effLines(p).map((ln) => ({
+        id: ln.id,
+        order: ln.order,
+        role: ln.role === "R" ? "RESPONDER" : "CALLER",
+        text: ln.text,
+        connectiveIndices: ln.anchors,
+        lociHint: null,
+      })),
+    }),
+    [effLines],
+  );
+
+  // Seed the practice anchors when the prayer / anchors toggle / route changes.
+  useEffect(() => {
+    const next: Record<string, Set<number>> = {};
+    effLines(cur).forEach((ln) => {
+      next[ln.id] = new Set(anchorsOn ? ln.anchors : []);
+    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed on prayer/toggle change
+    setReciteAnchors(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on these
+  }, [pid, anchorsOn, route]);
+
+  const toggleReciteAnchor = (segId: string, wi: number) =>
+    setReciteAnchors((prev) => {
+      const set = new Set(prev[segId]);
+      if (set.has(wi)) set.delete(wi);
+      else set.add(wi);
+      return { ...prev, [segId]: set };
+    });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -718,8 +769,83 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     return { tw, committed, tgt, ok, done: committed >= tgt.length && tgt.length > 0 };
   }
 
+  function exerciseBar() {
+    const pill = (active: boolean, onClick: () => void, label: string) => (
+      <button
+        key={label}
+        onClick={onClick}
+        style={{
+          borderRadius: 999,
+          padding: "5px 13px",
+          fontSize: 13,
+          fontWeight: 600,
+          color: active ? "var(--gold-text)" : "var(--ink-soft)",
+          background: active ? "var(--gold)" : "transparent",
+          border: "none",
+        }}
+      >
+        {label}
+      </button>
+    );
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "inline-flex", borderRadius: 999, border: "1px solid var(--glass-border)", background: "var(--glass)", padding: 3 }}>
+          {pill(exercise === "recite", () => setExercise("recite"), "Recite")}
+          {pill(exercise === "type", () => setExercise("type"), "Type")}
+        </div>
+        <button
+          onClick={() => setAnchorsOn((a) => !a)}
+          aria-pressed={anchorsOn}
+          style={{
+            marginLeft: "auto",
+            borderRadius: 999,
+            padding: "6px 13px",
+            fontSize: 13,
+            fontWeight: 600,
+            border: "1px solid " + (anchorsOn ? "var(--gold)" : "var(--chip-bd)"),
+            background: anchorsOn ? "rgba(227,188,92,.14)" : "var(--chip-bg)",
+            color: anchorsOn ? "var(--gold)" : "var(--ink-soft)",
+          }}
+        >
+          {anchorsOn ? "Anchors on" : "Anchors off"}
+        </button>
+      </div>
+    );
+  }
+
   function Practice() {
     const p = cur;
+    const top = (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={() => go("player")} style={glass({ width: 38, height: 38, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center" })}>
+          <Icon name="chevleft" size={18} color="var(--ink)" />
+        </button>
+        <div style={{ letterSpacing: ".22em", textTransform: "uppercase", fontSize: 10.5, color: "var(--ink-faint)", fontWeight: 700 }}>Practice</div>
+        <div style={{ width: 38 }} />
+      </div>
+    );
+
+    // ---- Recite (voice, line-by-line / build-up) — the old-UI engine ----
+    if (exercise === "recite") {
+      return (
+        <div style={topPad}>
+          {top}
+          <div style={{ fontFamily: SERIF, fontSize: 30, color: "var(--ink)", marginTop: 16, lineHeight: 1 }}>{p.title}</div>
+          {exerciseBar()}
+          <div style={{ marginTop: 18, flex: 1 }}>
+            <PrayerRecite
+              key={`${pid}-${anchorsOn}`}
+              passage={toPassageView(p)}
+              anchors={reciteAnchors}
+              onToggleAnchor={toggleReciteAnchor}
+              voice="onyx"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // ---- Type (recitation typing test) ----
     const s = practiceState();
     const acc = s.committed > 0 ? Math.round((s.ok / s.committed) * 100) : 100;
     const prog = s.tgt.length ? s.committed / s.tgt.length : 0;
@@ -755,6 +881,11 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             } else if (idx === s.committed && !s.done) {
               color = "var(--ink)";
               st.borderBottom = "2px solid var(--gold)";
+            } else if (anchorsOn && a) {
+              // anchor hint for upcoming words
+              color = "var(--gold)";
+              st.fontStyle = "italic";
+              st.opacity = 0.5;
             } else {
               color = "var(--ink-faint)";
               st.opacity = 0.28;
@@ -770,7 +901,7 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     });
 
     const display = (
-      <div style={{ fontFamily: SERIF, fontSize: 21, lineHeight: 1.5, marginTop: 20 }}>{body}</div>
+      <div style={{ fontFamily: SERIF, fontSize: 21, lineHeight: 1.5, marginTop: 18 }}>{body}</div>
     );
 
     const head = (
@@ -793,21 +924,12 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
       </div>
     );
 
-    const top = (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button onClick={() => go("player")} style={glass({ width: 38, height: 38, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center" })}>
-          <Icon name="chevleft" size={18} color="var(--ink)" />
-        </button>
-        <div style={{ letterSpacing: ".22em", textTransform: "uppercase", fontSize: 10.5, color: "var(--ink-faint)", fontWeight: 700 }}>Practice</div>
-        <div style={{ width: 38 }} />
-      </div>
-    );
-
     if (s.done) {
       const great = acc >= 92;
       return (
         <div style={topPad}>
           {top}
+          {exerciseBar()}
           {head}
           <div style={{ opacity: 0.5 }}>{display}</div>
           <div style={{ marginTop: "auto", textAlign: "center", padding: "24px 0 30px" }}>
@@ -825,6 +947,7 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     return (
       <div style={topPad}>
         {top}
+        {exerciseBar()}
         {head}
         {display}
         <div style={{ position: "sticky", bottom: 14, marginTop: "auto", paddingTop: 18, zIndex: 30 }}>
