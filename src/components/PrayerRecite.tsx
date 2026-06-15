@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useRecognition } from "@/lib/useRecognition";
 import { useSpeech } from "@/lib/useSpeech";
 import { matchSpoken, realWordIndices, toWords } from "@/lib/recite";
+import { iconFor } from "@/lib/icons";
 import { audioSrc, voiceForSegment, type VoiceId } from "@/lib/voice";
 import type { PassageView, SegmentRole } from "@/lib/content";
 
@@ -13,6 +14,8 @@ interface Props {
   anchors: Record<string, Set<number>>;
   onToggleAnchor: (segId: string, wordIndex: number) => void;
   voice: VoiceId;
+  /** "anchors" = gold connective hints; "icons" = emoji hooks on key words. */
+  hintStyle?: "anchors" | "icons";
 }
 
 /** Line-by-line (recite each line once) or build-up (snowball from the top). */
@@ -41,6 +44,7 @@ export function PrayerRecite({
   anchors,
   onToggleAnchor,
   voice,
+  hintStyle = "anchors",
 }: Props) {
   const segments = passage.segments;
   const srcFor = (seg: { order: number; role: string }) =>
@@ -346,7 +350,9 @@ export function PrayerRecite({
       <p className="mb-5 font-sans text-xs text-ink-faint">
         {isBuildup
           ? "Recite from the top — a line is added each round until you have the whole prayer."
-          : "Tap any word to reveal it as an anchor · tap again to hide it"}
+          : hintStyle === "icons"
+            ? "Emoji mark the key words — recite each line; tap any word to reveal it"
+            : "Tap any word to reveal it as an anchor · tap again to hide it"}
       </p>
 
       {!supported && (
@@ -382,6 +388,7 @@ export function PrayerRecite({
                   anchorSet={anchors[seg.id] ?? new Set()}
                   heardSet={heard[seg.id]}
                   done={isDone}
+                  hintStyle={hintStyle}
                   onToggleWord={(idx) => onToggleAnchor(seg.id, idx)}
                 />
               </ReciteBubble>
@@ -486,12 +493,14 @@ function MaskedLine({
   anchorSet,
   heardSet,
   done,
+  hintStyle,
   onToggleWord,
 }: {
   words: string[];
   anchorSet: Set<number>;
   heardSet: Set<number>;
   done: boolean;
+  hintStyle: "anchors" | "icons";
   onToggleWord: (index: number) => void;
 }) {
   return (
@@ -500,11 +509,15 @@ function MaskedLine({
         const isAnchor = anchorSet.has(i);
         const isHeard = heardSet.has(i);
         const revealed = done || isAnchor || isHeard;
+        // Icons mode: a still-hidden key word shows its emoji hook instead of a blank.
+        const emoji =
+          !revealed && hintStyle === "icons" ? iconFor(word) : null;
         const cls = [
           "recite-word",
           isAnchor ? "is-anchor" : "",
           !isAnchor && isHeard ? "is-heard" : "",
-          revealed ? "" : "is-blank",
+          emoji ? "recite-icon" : "",
+          !revealed && !emoji ? "is-blank" : "",
         ]
           .filter(Boolean)
           .join(" ");
@@ -514,15 +527,18 @@ function MaskedLine({
               type="button"
               onClick={() => onToggleWord(i)}
               className={cls}
+              title={emoji ? word : undefined}
               aria-label={
-                isAnchor
-                  ? `${word} — anchor, tap to hide`
-                  : revealed
-                    ? `${word} — tap to make an anchor`
-                    : "hidden word — tap to reveal as an anchor"
+                emoji
+                  ? `${word} (icon hint) — tap to reveal`
+                  : isAnchor
+                    ? `${word} — anchor, tap to hide`
+                    : revealed
+                      ? `${word} — tap to make an anchor`
+                      : "hidden word — tap to reveal"
               }
             >
-              {word}
+              {emoji ?? word}
             </button>
             {i < words.length - 1 ? " " : ""}
           </span>

@@ -192,6 +192,14 @@ body::before {
   background: rgba(176, 131, 39, 0.14);
 }
 
+/* Icons mode: a key word shown as its emoji memory hook. */
+.recite-word.is-icon,
+.recite-icon {
+  color: var(--ink);
+  font-style: normal;
+  font-weight: 400;
+}
+
 @keyframes pulse-glow {
   0%,
   100% {

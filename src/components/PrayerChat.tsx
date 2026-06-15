@@ -16,7 +16,7 @@ import {
 import type { PassageView, SegmentRole, SegmentView } from "@/lib/content";
 
 type Perspective = "CALLER" | "RESPONDER" | "BOTH";
-type Mode = "READ" | "RECITE";
+type Mode = "READ" | "RECITE" | "ICONS";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface Props {
@@ -191,7 +191,7 @@ export function PrayerChat({ passage }: Props) {
         role="group"
         aria-label="Choose a mode"
       >
-        {(["READ", "RECITE"] as Mode[]).map((m) => (
+        {(["READ", "RECITE", "ICONS"] as Mode[]).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
@@ -202,7 +202,7 @@ export function PrayerChat({ passage }: Props) {
                 : "text-ink-soft hover:text-ink"
             }`}
           >
-            {m === "READ" ? "Read" : "Recite"}
+            {m === "READ" ? "Read" : m === "RECITE" ? "Recite" : "Icons"}
           </button>
         ))}
       </div>
@@ -232,12 +232,13 @@ export function PrayerChat({ passage }: Props) {
         </div>
       </div>
 
-      {mode === "RECITE" ? (
+      {mode === "RECITE" || mode === "ICONS" ? (
         <PrayerRecite
           passage={passage}
           anchors={anchors}
           onToggleAnchor={toggleAnchor}
           voice={voice}
+          hintStyle={mode === "ICONS" ? "icons" : "anchors"}
         />
       ) : (
         <>

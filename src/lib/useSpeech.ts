@@ -74,6 +74,7 @@ export function useSpeech() {
     (item: SpeechItem, onDone: () => void) => {
       if (item.src) {
         const audio = new Audio(item.src);
+        audio.playbackRate = 1.2; // 20% faster; pitch preserved by default
         audioRef.current = audio;
         audio.onplay = () => setActiveKey(item.key);
         audio.onended = () => {
