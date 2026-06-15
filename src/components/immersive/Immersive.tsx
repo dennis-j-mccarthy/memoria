@@ -849,8 +849,6 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     const accOk = lineResults.reduce((a, r) => a + r.ok, 0);
     const acc = accTotal ? Math.round((accOk / accTotal) * 100) : 100;
     const prog = total ? Math.min(lineIdx, total) / total : 0;
-    const R = 26;
-    const C = 2 * Math.PI * R;
 
     const curLine = done ? null : tLines[lineIdx];
     const tgtW = curLine ? curLine.text.split(/\s+/).filter(Boolean) : [];
@@ -884,82 +882,95 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
       setTyped("");
     };
 
-    const body = tLines.map((ln, li) => {
-      const ws = ln.text.split(/\s+/).filter(Boolean);
-      const isCur = li === lineIdx && !done;
-      const isPast = li < lineIdx;
-      return (
-        <div key={li} style={{ marginBottom: 7, textAlign: ln.role === "R" ? "right" : "left", opacity: isCur ? 1 : isPast ? 0.7 : 0.5 }}>
-          {ws.map((w, wi) => {
-            const a = ln.anchors.includes(wi);
-            let color = "var(--ink-faint)";
-            const st: React.CSSProperties = {};
-            if (isPast) {
-              color = a ? "var(--gold)" : "var(--ink-soft)";
-              st.fontStyle = a ? "italic" : "normal";
-              st.fontWeight = a ? 600 : 400;
-            } else if (isCur) {
+    const head = (
+      <div style={{ marginTop: 16 }}>
+        <div style={{ fontFamily: SERIF, fontSize: 30, color: "var(--ink)", lineHeight: 1 }}>{p.title}</div>
+        <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4 }}>
+          {done ? `Complete · ${acc}% accurate` : `Line ${Math.min(lineIdx + 1, total)} / ${total} · ${acc}% accurate`}
+        </div>
+        <div style={{ height: 3, borderRadius: 99, background: "var(--track)", marginTop: 10, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${prog * 100}%`, background: "var(--gold)", borderRadius: 99, transition: "width .25s" }} />
+        </div>
+      </div>
+    );
+
+    const bubbles = (
+      <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 9 }}>
+        {tLines.map((ln, li) => {
+          const isR = ln.role === "R";
+          const isCur = li === lineIdx && !done;
+          const isPast = li < lineIdx;
+          const ws = ln.text.split(/\s+/).filter(Boolean);
+          let content: React.ReactNode;
+          if (isCur) {
+            content = ws.map((w, wi) => {
+              const a = ln.anchors.includes(wi);
+              let color = "var(--act-ink)";
+              const st: React.CSSProperties = {};
               if (wi < committed) {
                 const okk = tw[wi] && norm(tw[wi]) === norm(w);
                 if (okk) {
-                  color = a ? "var(--gold)" : "var(--ink)";
+                  color = a ? "var(--gold)" : "var(--act-ink)";
                   st.fontWeight = a ? 600 : 500;
                   st.fontStyle = a ? "italic" : "normal";
                 } else {
-                  color = theme === "dark" ? "#E2876A" : "#C0492F";
+                  color = "#E2876A";
                   st.textDecoration = "line-through";
                 }
               } else if (wi === committed) {
-                color = "var(--ink)";
                 st.borderBottom = "2px solid var(--gold)";
               } else if (anchorsOn && a) {
                 color = "var(--gold)";
                 st.fontStyle = "italic";
-                st.opacity = 0.5;
+                st.opacity = 0.6;
               } else {
-                color = "var(--ink-faint)";
                 st.opacity = 0.3;
               }
-            } else {
-              if (anchorsOn && a) {
-                color = "var(--gold)";
-                st.fontStyle = "italic";
-                st.opacity = 0.4;
-              } else {
-                color = "var(--ink-faint)";
-                st.opacity = 0.25;
-              }
-            }
-            return (
-              <span key={wi} style={{ color, transition: "color .15s", ...st }}>
-                {w}{" "}
-              </span>
-            );
-          })}
-        </div>
-      );
-    });
-    const display = (
-      <div style={{ fontFamily: SERIF, fontSize: 21, lineHeight: 1.5, marginTop: 18 }}>{body}</div>
-    );
-
-    const head = (
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
-        <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
-          <svg width={64} height={64} viewBox="0 0 64 64">
-            <circle cx={32} cy={32} r={R} fill="none" stroke="var(--track)" strokeWidth={5} />
-            <circle cx={32} cy={32} r={R} fill="none" stroke="var(--gold)" strokeWidth={5} strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - prog)} transform="rotate(-90 32 32)" style={{ transition: "stroke-dashoffset .25s" }} />
-          </svg>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: 17, color: "var(--ink)" }}>
-            {Math.round(prog * 100)}%
-          </div>
-        </div>
-        <div>
-          <div style={{ fontFamily: SERIF, fontSize: 26, color: "var(--ink)", lineHeight: 1 }}>{p.title}</div>
-          <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4 }}>
-            Line {Math.min(lineIdx + 1, total)} / {total} · {acc}% accurate
-          </div>
-        </div>
+              return (
+                <span key={wi} style={{ color, transition: "color .15s", ...st }}>
+                  {w}{" "}
+                </span>
+              );
+            });
+          } else if (isPast) {
+            content = anchorWline(ln.text, ln.anchors, false);
+          } else {
+            content = ws.map((w, wi) => {
+              const a = ln.anchors.includes(wi);
+              const hint = anchorsOn && a;
+              return (
+                <span key={wi} style={{ color: hint ? "var(--gold)" : "var(--ink-faint)", fontStyle: hint ? "italic" : "normal", opacity: hint ? 0.5 : 0.32 }}>
+                  {w}{" "}
+                </span>
+              );
+            });
+          }
+          const bg = isCur ? (isR ? "var(--resp-act-bg)" : "var(--act-bg)") : isR ? "var(--resp-bubble)" : "var(--leader-bubble)";
+          const bd = isCur ? (isR ? "var(--resp-act-bd)" : "var(--act-bd)") : isR ? "var(--resp-bd)" : "var(--leader-bd)";
+          return (
+            <div key={li} style={{ display: "flex", justifyContent: isR ? "flex-end" : "flex-start" }}>
+              <div
+                style={{
+                  maxWidth: "86%",
+                  padding: isCur ? "12px 17px" : "9px 15px",
+                  borderRadius: isR ? "18px 18px 5px 18px" : "18px 18px 18px 5px",
+                  background: bg,
+                  border: "1px solid " + bd,
+                  fontFamily: SERIF,
+                  fontSize: isCur ? 20 : 18,
+                  lineHeight: 1.32,
+                  color: isPast ? "var(--ink-soft)" : "var(--ink-faint)",
+                  boxShadow: isCur ? (isR ? "var(--resp-act-glow)" : "var(--act-glow)") : "none",
+                  textAlign: isR ? "right" : "left",
+                  opacity: !isCur && !isPast ? 0.75 : 1,
+                  transition: "all .25s",
+                }}
+              >
+                {content}
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
 
@@ -968,10 +979,10 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
       return (
         <div style={topPad}>
           {top}
-          {exerciseBar()}
           {head}
-          <div style={{ opacity: 0.6 }}>{display}</div>
-          <div style={{ marginTop: "auto", textAlign: "center", padding: "24px 0 30px" }}>
+          {exerciseBar()}
+          <div style={{ opacity: 0.7 }}>{bubbles}</div>
+          <div style={{ marginTop: "auto", textAlign: "center", padding: "20px 0 28px" }}>
             <div style={{ width: 56, height: 56, borderRadius: 999, background: great ? "#5FBD93" : "var(--play-grad)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
               <Icon name="check" size={26} color="#fff" />
             </div>
@@ -986,9 +997,9 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     return (
       <div style={topPad}>
         {top}
-        {exerciseBar()}
         {head}
-        {display}
+        {exerciseBar()}
+        {bubbles}
         <div style={{ position: "sticky", bottom: 14, marginTop: "auto", paddingTop: 18, zIndex: 30 }}>
           <div style={{ borderRadius: 22, padding: 14, background: "var(--glass-strong)", border: "1px solid var(--glass-border)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)", boxShadow: "0 16px 38px rgba(0,0,0,.4)" }}>
             <textarea
