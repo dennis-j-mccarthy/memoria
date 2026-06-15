@@ -235,13 +235,15 @@ export function PrayerChat({ passage }: Props) {
               key={v.id}
               onClick={() => changeVoice(v.id)}
               aria-pressed={voice === v.id}
-              className={`rounded-full px-2.5 py-0.5 font-sans text-sm transition-colors ${
+              aria-label={`${v.label} voice`}
+              title={`${v.label} voice`}
+              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
                 voice === v.id
                   ? "bg-ink text-parchment-raised"
                   : "text-ink-soft hover:text-ink"
               }`}
             >
-              {v.label}
+              <VoiceIcon id={v.id} />
             </button>
           ))}
         </div>
@@ -257,31 +259,33 @@ export function PrayerChat({ passage }: Props) {
         />
       ) : (
         <>
-      {/* Primary action: hear the whole prayer */}
+      {/* Primary action: a large play button to hear the whole prayer */}
       {supported && (
         <button
           onClick={() => (playingAll ? stop() : speakAll(speechItems))}
-          className={`mb-5 inline-flex items-center gap-2 rounded-full px-5 py-2 font-sans text-sm font-medium transition-colors ${
+          aria-label={playingAll ? "Stop" : "Hear the whole prayer"}
+          title={playingAll ? "Stop" : "Hear the whole prayer"}
+          className={`mb-6 flex h-14 w-14 items-center justify-center rounded-full shadow-[var(--bubble-shadow)] transition-colors ${
             playingAll
               ? "bg-gold text-parchment-raised"
               : "bg-ink text-parchment-raised hover:opacity-90"
           }`}
         >
           {playingAll ? (
-            <>
-              <StopIcon /> Stop
-            </>
+            <svg width="20" height="20" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
+              <rect x="2.5" y="2.5" width="7" height="7" rx="1.4" />
+            </svg>
           ) : (
-            <>
-              <PlayIcon /> Hear the whole prayer
-            </>
+            <svg width="24" height="24" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
+              <path d="M3 1.8v8.4c0 .5.5.8 1 .55l6.6-4.2c.4-.26.4-.84 0-1.1L4 1.25c-.5-.3-1 0-1 .55z" />
+            </svg>
           )}
         </button>
       )}
 
-      {/* Reading options, clearly grouped and labelled */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-        {passage.dialogic && (
+      {/* Voices — only for call-and-response prayers */}
+      {passage.dialogic && (
+        <div className="mb-6">
           <Labeled label="Voices">
             {(["CALLER", "RESPONDER", "BOTH"] as Perspective[]).map((r) => (
               <Segment
@@ -297,23 +301,80 @@ export function PrayerChat({ passage }: Props) {
               </Segment>
             ))}
           </Labeled>
-        )}
+        </div>
+      )}
 
-        <div className="flex items-center gap-2">
+      {/* Conversation */}
+      <ol className="space-y-2.5">
+        {passage.segments.map((seg, i) => {
+          const outgoing = isOutgoing(seg.role);
+          const active = activeKey === seg.id;
+          return (
+            <li
+              key={seg.id}
+              className={`flex ${outgoing ? "justify-end" : "justify-start"}`}
+              style={{
+                animation: "rise 0.4s ease-out both",
+                animationDelay: `${Math.min(i * 40, 600)}ms`,
+              }}
+            >
+              <Bubble role={seg.role} outgoing={outgoing} active={active}>
+                <span className="flex items-center gap-2.5">
+                  {/* Play control lives inside the bubble, on its left */}
+                  {supported && (
+                    <PlayButton
+                      active={active}
+                      onClick={() =>
+                        active
+                          ? stop()
+                          : speak({
+                              key: seg.id,
+                              text: seg.text,
+                              lang: passage.language,
+                              src: srcFor(seg),
+                            })
+                      }
+                    />
+                  )}
+                  <ConnectiveText
+                    text={seg.text}
+                    anchorIndices={[
+                      ...(anchors[seg.id] ?? seg.connectiveIndices),
+                    ]}
+                    highlight={highlight}
+                    onToggleWord={
+                      editAnchors
+                        ? (idx) => toggleAnchor(seg.id, idx)
+                        : undefined
+                    }
+                  />
+                </span>
+              </Bubble>
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* Anchors — a quiet footer control under the prayer */}
+      <div className="mt-8 border-t border-hairline pt-5">
+        <div className="flex flex-wrap items-center gap-3">
           <Labeled label="Anchors">
             {(
               [
-                ["hide", "Hide"],
-                ["show", "Show"],
-                ["edit", "Edit"],
-              ] as [AnchorMode, string][]
-            ).map(([am, label]) => (
+                ["hide", "Hide", <EyeOffIcon key="i" />],
+                ["show", "Show", <EyeIcon key="i" />],
+                ["edit", "Edit", <PencilIcon key="i" />],
+              ] as [AnchorMode, string, React.ReactNode][]
+            ).map(([am, label, icon]) => (
               <Segment
                 key={am}
                 active={anchorMode === am}
                 onClick={() => setAnchorMode(am)}
               >
-                {label}
+                <span className="inline-flex items-center gap-1.5">
+                  {icon}
+                  {label}
+                </span>
               </Segment>
             ))}
           </Labeled>
@@ -326,78 +387,32 @@ export function PrayerChat({ passage }: Props) {
             </button>
           )}
         </div>
+
+        {anchorMode === "edit" && (
+          <p className="mt-3 font-sans text-xs text-ink-faint">
+            Tap a word above to add or remove its gold anchor. Your choices
+            carry into Practice and Icons.{" "}
+            {user ? (
+              <span className="text-ink-soft">
+                {saveStatus === "saving"
+                  ? "· Saving…"
+                  : saveStatus === "saved"
+                    ? "· Saved"
+                    : saveStatus === "error"
+                      ? "· Couldn’t save — check your connection"
+                      : ""}
+              </span>
+            ) : (
+              <Link
+                href={`/signin?redirect=/prayers/${passage.slug}`}
+                className="text-gold underline-offset-2 hover:underline"
+              >
+                Sign in to save them across devices.
+              </Link>
+            )}
+          </p>
+        )}
       </div>
-
-      {anchorMode === "edit" && (
-        <p className="-mt-3 mb-5 font-sans text-xs text-ink-faint">
-          Tap a word to add or remove its gold anchor. Your choices carry into
-          Practice and Icons.{" "}
-          {user ? (
-            <span className="text-ink-soft">
-              {saveStatus === "saving"
-                ? "· Saving…"
-                : saveStatus === "saved"
-                  ? "· Saved"
-                  : saveStatus === "error"
-                    ? "· Couldn’t save — check your connection"
-                    : ""}
-            </span>
-          ) : (
-            <Link
-              href={`/signin?redirect=/prayers/${passage.slug}`}
-              className="text-gold underline-offset-2 hover:underline"
-            >
-              Sign in to save them across devices.
-            </Link>
-          )}
-        </p>
-      )}
-
-      {/* Conversation */}
-      <ol className="space-y-2.5">
-        {passage.segments.map((seg, i) => {
-          const outgoing = isOutgoing(seg.role);
-          const active = activeKey === seg.id;
-          return (
-            <li
-              key={seg.id}
-              className={`flex items-center gap-2 ${
-                outgoing ? "flex-row-reverse" : "flex-row"
-              }`}
-              style={{
-                animation: "rise 0.4s ease-out both",
-                animationDelay: `${Math.min(i * 40, 600)}ms`,
-              }}
-            >
-              <Bubble role={seg.role} outgoing={outgoing} active={active}>
-                <ConnectiveText
-                  text={seg.text}
-                  anchorIndices={[...(anchors[seg.id] ?? seg.connectiveIndices)]}
-                  highlight={highlight}
-                  onToggleWord={
-                    editAnchors ? (idx) => toggleAnchor(seg.id, idx) : undefined
-                  }
-                />
-              </Bubble>
-              {supported && (
-                <PlayButton
-                  active={active}
-                  onClick={() =>
-                    active
-                      ? stop()
-                      : speak({
-                          key: seg.id,
-                          text: seg.text,
-                          lang: passage.language,
-                          src: srcFor(seg),
-                        })
-                  }
-                />
-              )}
-            </li>
-          );
-        })}
-      </ol>
 
       <style>{`
         @keyframes rise {
@@ -469,29 +484,54 @@ function PlayButton({
     <button
       onClick={onClick}
       aria-label={active ? "Stop" : "Play line"}
-      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors ${
-        active
-          ? "border-gold bg-gold text-parchment-raised"
-          : "border-hairline text-ink-faint hover:border-gold/50 hover:text-gold"
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-opacity ${
+        active ? "opacity-100" : "opacity-55 hover:opacity-100"
       }`}
     >
-      {active ? <StopIcon /> : <PlayIcon />}
+      {active ? (
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
+          <rect x="2.5" y="2.5" width="7" height="7" rx="1.2" />
+        </svg>
+      ) : (
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
+          <path d="M3 1.8v8.4c0 .5.5.8 1 .55l6.6-4.2c.4-.26.4-.84 0-1.1L4 1.25c-.5-.3-1 0-1 .55z" />
+        </svg>
+      )}
     </button>
   );
 }
 
-function PlayIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
-      <path d="M2.5 1.6v8.8c0 .5.5.8 1 .6l7-4.4c.4-.3.4-.9 0-1.2l-7-4.4c-.5-.3-1 0-1 .6z" />
+function VoiceIcon({ id }: { id: VoiceId }) {
+  // Onyx = male (Mars ♂), Shimmer = female (Venus ♀).
+  return id === "onyx" ? (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="6.3" cy="9.7" r="3.4" />
+      <path d="M9.2 6.8 13.5 2.5M10.3 2.5h3.2v3.2" />
     </svg>
-  );
-}
-
-function StopIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
-      <rect x="2.5" y="2.5" width="7" height="7" rx="1.2" />
+  ) : (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="8" cy="6" r="3.4" />
+      <path d="M8 9.4v5M5.6 12h4.8" />
     </svg>
   );
 }
@@ -509,6 +549,54 @@ function SpeakerIcon() {
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M1.5 8S3.8 3.5 8 3.5 14.5 8 14.5 8 12.2 12.5 8 12.5 1.5 8 1.5 8Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <circle cx="8" cy="8" r="1.8" fill="currentColor" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M3 4.2C1.9 5.2 1.5 8 1.5 8s2.3 4.5 6.5 4.5c1 0 1.9-.2 2.7-.6M6.4 4c.5-.1 1-.2 1.6-.2 4.2 0 6.5 4.5 6.5 4.5s-.6 1.2-1.7 2.3"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.6 6.6a2 2 0 0 0 2.8 2.8"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path d="M2 2l12 12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M11 2.5l2.5 2.5M3 13l-.5 1.5L4 14l8-8-2-2-7 7z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
       />
     </svg>
   );
