@@ -13,6 +13,9 @@ interface Props {
   onToggleAnchor: (segId: string, wordIndex: number) => void;
 }
 
+/** Line-by-line (recite each line once) or build-up (snowball from the top). */
+type Practice = "LINE" | "BUILDUP";
+
 /** Share of a line's real words you must speak before it counts as recited. */
 const PASS_THRESHOLD = 0.8;
 
@@ -24,15 +27,16 @@ function coverage(realIdx: number[], heard: Set<number>): number {
 }
 
 /**
- * Recite mode (spec: active recall). Every line is blanked down to its gold
- * anchors; you speak it from memory and each word lights up as it's heard,
- * advancing line by line. Tap any word to toggle it as an anchor — i.e. reset
- * which scaffolding shows for that segment — when you need a bigger hint.
+ * Recite mode (active recall). Every line is blanked down to its gold anchors
+ * and lights up as you speak it. Two practice styles:
+ *   • Line by line — recite each line once, advancing down the prayer.
+ *   • Build up — the snowball method: recite line 1, then lines 1–2 from the
+ *     top, then 1–3, … adding a line each round until you have the whole thing.
+ * Tap any word to toggle it as an anchor.
  */
 export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
   const segments = passage.segments;
 
-  // Per-segment word lists, computed once.
   const words = useMemo(
     () => Object.fromEntries(segments.map((s) => [s.id, toWords(s.text)])),
     [segments],
@@ -45,22 +49,39 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
     [segments, words],
   );
 
-  // Words revealed by voice as they're recited.
+  const [practice, setPractice] = useState<Practice>("LINE");
+  const [target, setTarget] = useState(1); // lines in the current build-up round
   const [heard, setHeard] = useState<Record<string, Set<number>>>(() =>
     Object.fromEntries(segments.map((s) => [s.id, new Set<number>()])),
   );
   const [done, setDone] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState(0);
+  const [activeId, setActiveId] = useState<string | null>(null); // segId, or "round"
 
   // Refs mirror state so the live recognition callback reads current values.
-  // Kept in sync by the setters below, never written during render.
+  const targetRef = useRef(target);
   const heardRef = useRef(heard);
   const doneRef = useRef(done);
 
   const { supported, listening, error, start, stop } = useRecognition();
   const speech = useSpeech();
-  const [activeId, setActiveId] = useState<string | null>(null);
 
+  const freshHeard = useCallback(
+    () => Object.fromEntries(segments.map((s) => [s.id, new Set<number>()])),
+    [segments],
+  );
+
+  const clearProgress = useCallback(() => {
+    const fh = freshHeard();
+    heardRef.current = fh;
+    setHeard(fh);
+    doneRef.current = new Set();
+    setDone(new Set());
+    setCursor(0);
+    setActiveId(null);
+  }, [freshHeard]);
+
+  // ---- Line-by-line ------------------------------------------------------
   const advance = useCallback(
     (fromIndex: number, doneSet: Set<string>) => {
       let next = fromIndex + 1;
@@ -82,7 +103,7 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
     [advance],
   );
 
-  const startListening = useCallback(
+  const startLine = useCallback(
     (segId: string, index: number) => {
       const segWords = words[segId];
       const real = realIdx[segId];
@@ -115,6 +136,96 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
     [words, realIdx, start, stop, passage.language, completeSegment],
   );
 
+  // ---- Build-up (snowball) ----------------------------------------------
+  const completeRound = useCallback(() => {
+    const t = targetRef.current;
+    if (t >= segments.length) {
+      setCursor(segments.length); // whole prayer recited — allDone
+      return;
+    }
+    const newTarget = t + 1;
+    targetRef.current = newTarget;
+    setTarget(newTarget);
+    const fh = freshHeard();
+    heardRef.current = fh;
+    setHeard(fh);
+    setCursor(0);
+    setActiveId(null);
+  }, [segments, freshHeard]);
+
+  /** Listen continuously across the whole round, advancing line to line. */
+  const startRound = useCallback(() => {
+    const t = targetRef.current;
+    const lines = Array.from({ length: t }, (_, i) => i);
+    // Flatten the round's words and remember which line each came from.
+    const combined: string[] = [];
+    const origin: { li: number; segId: string }[] = [];
+    for (const li of lines) {
+      const segId = segments[li].id;
+      for (const w of words[segId]) {
+        combined.push(w);
+        origin.push({ li, segId });
+      }
+    }
+    const sessions = lines.map(
+      (li) => new Set(heardRef.current[segments[li].id]),
+    );
+    setActiveId("round");
+    start({
+      lang: passage.language,
+      onTranscript: (text) => {
+        const matched = matchSpoken(combined, text);
+        let changed = false;
+        let ci = -1;
+        for (const { li } of origin) {
+          ci += 1;
+          if (matched.has(ci)) {
+            // Map the flat index back to that line's local word index.
+            const local = origin
+              .slice(0, ci + 1)
+              .filter((o) => o.li === li).length - 1;
+            if (!sessions[li].has(local)) {
+              sessions[li].add(local);
+              changed = true;
+            }
+          }
+        }
+        if (changed) {
+          const next = { ...heardRef.current };
+          lines.forEach((li) => {
+            next[segments[li].id] = new Set(sessions[li]);
+          });
+          heardRef.current = next;
+          setHeard(next);
+        }
+        const covered = (li: number) =>
+          coverage(realIdx[segments[li].id], sessions[li]) >= PASS_THRESHOLD;
+        const firstOpen = lines.find((li) => !covered(li));
+        setCursor(firstOpen ?? t);
+        if (firstOpen === undefined) {
+          stop();
+          completeRound();
+        }
+      },
+      onEnd: () => setActiveId(null),
+    });
+  }, [segments, words, realIdx, start, stop, passage.language, completeRound]);
+
+  const revealRound = useCallback(() => {
+    stop();
+    const t = targetRef.current;
+    const lines = Array.from({ length: t }, (_, i) => i);
+    const next = { ...heardRef.current };
+    lines.forEach((li) => {
+      const segId = segments[li].id;
+      next[segId] = new Set(words[segId].map((_, i) => i));
+    });
+    heardRef.current = next;
+    setHeard(next);
+    completeRound();
+  }, [segments, words, stop, completeRound]);
+
+  // ---- Shared controls ---------------------------------------------------
   const revealLine = useCallback(
     (segId: string, index: number) => {
       if (activeId === segId) stop();
@@ -123,41 +234,96 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
     [activeId, stop, completeSegment],
   );
 
+  const setMode = useCallback(
+    (p: Practice) => {
+      stop();
+      speech.stop();
+      setPractice(p);
+      targetRef.current = 1;
+      setTarget(1);
+      clearProgress();
+    },
+    [stop, speech, clearProgress],
+  );
+
   const reset = useCallback(() => {
     stop();
     speech.stop();
-    const freshHeard = Object.fromEntries(
-      segments.map((s) => [s.id, new Set<number>()]),
-    );
-    heardRef.current = freshHeard;
-    setHeard(freshHeard);
-    doneRef.current = new Set();
-    setDone(new Set());
-    setCursor(0);
-    setActiveId(null);
-  }, [segments, stop, speech]);
+    targetRef.current = 1;
+    setTarget(1);
+    clearProgress();
+  }, [stop, speech, clearProgress]);
 
-  const completedCount = done.size;
-  const allDone = completedCount === segments.length;
+  const isBuildup = practice === "BUILDUP";
+  const visibleCount = isBuildup ? target : segments.length;
+  const allDone = cursor >= segments.length;
+  const remaining = segments.length - target;
+
+  const progress = isBuildup
+    ? allDone
+      ? 1
+      : (target - 1) / segments.length
+    : done.size / segments.length;
+
+  function speakRound() {
+    const t = targetRef.current;
+    const items = Array.from({ length: t }, (_, li) => ({
+      key: segments[li].id,
+      text: segments[li].text,
+      lang: passage.language,
+    }));
+    speech.speakAll(items);
+  }
+
+  const roundListening = activeId === "round" && listening;
 
   return (
     <div>
+      {/* Practice style */}
+      <div
+        className="mb-5 inline-flex rounded-full border border-hairline bg-parchment-raised p-1"
+        role="group"
+        aria-label="Practice style"
+      >
+        {(
+          [
+            ["LINE", "Line by line"],
+            ["BUILDUP", "Build up"],
+          ] as [Practice, string][]
+        ).map(([p, label]) => (
+          <button
+            key={p}
+            onClick={() => setMode(p)}
+            aria-pressed={practice === p}
+            className={`rounded-full px-3 py-1 font-sans text-sm transition-colors ${
+              practice === p
+                ? "bg-ink text-parchment-raised"
+                : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Status bar */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="h-1.5 w-32 overflow-hidden rounded-full bg-hairline">
             <div
               className="h-full rounded-full bg-gold transition-[width] duration-500"
-              style={{
-                width: `${(completedCount / segments.length) * 100}%`,
-              }}
+              style={{ width: `${progress * 100}%` }}
             />
           </div>
           <span className="font-sans text-sm text-ink-faint">
-            {completedCount} / {segments.length} recited
+            {isBuildup
+              ? allDone
+                ? `All ${segments.length} lines`
+                : `Round ${target} of ${segments.length}`
+              : `${done.size} / ${segments.length} recited`}
           </span>
         </div>
-        {completedCount > 0 && (
+        {(isBuildup ? target > 1 || done.size > 0 : done.size > 0) && (
           <button
             onClick={reset}
             className="rounded-full border border-hairline px-3 py-1 font-sans text-sm text-ink-soft transition-colors hover:border-gold/40 hover:text-gold"
@@ -168,14 +334,16 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
       </div>
 
       <p className="mb-5 font-sans text-xs text-ink-faint">
-        Tap any word to reveal it as an anchor · tap again to hide it
+        {isBuildup
+          ? "Recite from the top — a line is added each round until you have the whole prayer."
+          : "Tap any word to reveal it as an anchor · tap again to hide it"}
       </p>
 
       {!supported && (
         <p className="mb-5 rounded-xl border border-hairline bg-parchment-raised px-4 py-3 font-sans text-sm text-ink-soft">
           Voice recognition isn&apos;t available in this browser, but you can
-          still practice: tap a blank to reveal it, or use <em>Reveal line</em>{" "}
-          to move on.
+          still practice: tap a blank to reveal it, or use <em>Reveal</em> to
+          move on.
         </p>
       )}
       {error && (
@@ -186,9 +354,12 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
 
       <ol className="space-y-2.5">
         {segments.map((seg, i) => {
+          if (i >= visibleCount) return null;
           const isDone = done.has(seg.id);
           const isCurrent = i === cursor && !allDone;
-          const isListening = activeId === seg.id && listening;
+          const isListening = isBuildup
+            ? roundListening && isCurrent
+            : activeId === seg.id && listening;
           return (
             <li key={seg.id}>
               <ReciteBubble
@@ -205,12 +376,13 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
                 />
               </ReciteBubble>
 
-              {isCurrent && (
+              {/* Line-by-line controls live under the active line. */}
+              {!isBuildup && isCurrent && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {supported && (
                     <button
                       onClick={() =>
-                        isListening ? stop() : startListening(seg.id, i)
+                        isListening ? stop() : startLine(seg.id, i)
                       }
                       className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-sans text-sm font-medium transition-colors ${
                         isListening
@@ -248,6 +420,46 @@ export function PrayerRecite({ passage, anchors, onToggleAnchor }: Props) {
           );
         })}
       </ol>
+
+      {/* Build-up controls act on the whole round. */}
+      {isBuildup && !allDone && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {supported && (
+            <button
+              onClick={() => (roundListening ? stop() : startRound())}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-sans text-sm font-medium transition-colors ${
+                roundListening
+                  ? "bg-gold text-parchment-raised"
+                  : "bg-ink text-parchment-raised hover:opacity-90"
+              }`}
+            >
+              <MicIcon />
+              {roundListening
+                ? "Listening… tap to stop"
+                : target === 1
+                  ? "Recite line 1"
+                  : `Recite lines 1–${target}`}
+            </button>
+          )}
+          <button
+            onClick={() => (speech.playingAll ? speech.stop() : speakRound())}
+            className="rounded-full border border-hairline px-3 py-1.5 font-sans text-sm text-ink-soft transition-colors hover:border-gold/40 hover:text-gold"
+          >
+            {speech.playingAll ? "Stop" : "Hear it"}
+          </button>
+          <button
+            onClick={revealRound}
+            className="rounded-full border border-hairline px-3 py-1.5 font-sans text-sm text-ink-soft transition-colors hover:border-gold/40 hover:text-gold"
+          >
+            Reveal &amp; advance →
+          </button>
+          {remaining > 0 && (
+            <span className="font-sans text-xs text-ink-faint">
+              {remaining} more line{remaining === 1 ? "" : "s"} to come
+            </span>
+          )}
+        </div>
+      )}
 
       {allDone && (
         <p className="mt-8 text-center font-serif text-lg text-gold">
