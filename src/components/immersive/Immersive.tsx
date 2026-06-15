@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon, PlayGlyph, PauseGlyph } from "@/components/immersive/Icon";
+import { ImmersiveRosaryMap } from "@/components/immersive/ImmersiveRosaryMap";
 import { audioSrc, type VoiceId } from "@/lib/voice";
 import type { ImmersivePrayer } from "@/lib/immersive";
 
@@ -459,6 +460,9 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             );
           })}
         </div>
+
+        {/* Where this prayer falls on the beads */}
+        <ImmersiveRosaryMap slug={p.slug} onPrayer={(s) => go("player", s)} />
 
         {/* Dock */}
         <div style={{ position: "sticky", bottom: 14, marginTop: "auto", paddingTop: 22, zIndex: 30 }}>
