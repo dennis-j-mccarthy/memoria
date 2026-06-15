@@ -425,6 +425,9 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
           </div>
         </div>
 
+        {/* Where this prayer falls on the beads */}
+        <ImmersiveRosaryMap slug={p.slug} onPrayer={(s) => go("player", s)} />
+
         {/* Lines */}
         <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 11 }}>
           {p.lines.map((ln, i) => {
@@ -460,9 +463,6 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             );
           })}
         </div>
-
-        {/* Where this prayer falls on the beads */}
-        <ImmersiveRosaryMap slug={p.slug} onPrayer={(s) => go("player", s)} />
 
         {/* Dock */}
         <div style={{ position: "sticky", bottom: 14, marginTop: "auto", paddingTop: 22, zIndex: 30 }}>
