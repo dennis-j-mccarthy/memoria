@@ -191,6 +191,18 @@ body::before {
 .word-toggle:hover {
   background: rgba(176, 131, 39, 0.14);
 }
+/* Keep anchored words gold here — .word-toggle's `color` would otherwise win
+   over .connective (same specificity, declared later). A faint pill makes the
+   toggle obvious while editing. */
+.word-toggle.connective {
+  color: var(--gold);
+  background: rgba(176, 131, 39, 0.12);
+}
+[data-theme="dark"] .word-toggle.connective,
+:root:not([data-theme="light"]) .word-toggle.connective {
+  color: var(--gold-soft);
+  background: rgba(216, 178, 90, 0.16);
+}
 
 /* Icons mode: a key word shown as its emoji memory hook. */
 .recite-word.is-icon,
