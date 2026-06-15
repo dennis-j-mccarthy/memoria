@@ -60,7 +60,7 @@ export function ConnectiveText({
               key={i}
               type="button"
               onClick={() => onToggleWord!(wordIndex)}
-              className={isAnchor ? "word-toggle connective" : "word-toggle"}
+              className={`word-toggle ${isAnchor ? "anchor-on" : "anchor-off"}`}
               aria-label={
                 isAnchor
                   ? `${token} — anchor, tap to remove`

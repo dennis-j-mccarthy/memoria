@@ -175,33 +175,40 @@ body::before {
   background: rgba(176, 131, 39, 0.16);
 }
 
-/* Read-mode anchor editing: words become borderless buttons you can tap to
-   toggle gold. The .connective class (above) supplies the gold when anchored. */
+/* Read-mode anchor editing: each word is a tappable button. Anchored words
+   show a clear gold pill; the rest get a hover affordance so it's obvious you
+   can tap to add them. Self-contained (not piggybacking on .connective) so the
+   cascade can't wash out the feedback. */
 .word-toggle {
   font: inherit;
+  border: none;
+  padding: 1px 4px;
+  margin: 0 -1px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.12s, color 0.12s, box-shadow 0.12s;
+}
+.word-toggle.anchor-off {
   color: inherit;
   background: none;
-  border: none;
-  padding: 0 1px;
-  margin: 0;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.15s;
 }
-.word-toggle:hover {
-  background: rgba(176, 131, 39, 0.14);
+.word-toggle.anchor-off:hover {
+  background: rgba(176, 131, 39, 0.16);
+  box-shadow: inset 0 -2px 0 rgba(176, 131, 39, 0.45);
 }
-/* Keep anchored words gold here — .word-toggle's `color` would otherwise win
-   over .connective (same specificity, declared later). A faint pill makes the
-   toggle obvious while editing. */
-.word-toggle.connective {
+.word-toggle.anchor-on {
   color: var(--gold);
-  background: rgba(176, 131, 39, 0.12);
+  font-weight: 600;
+  font-style: italic;
+  background: rgba(176, 131, 39, 0.18);
 }
-[data-theme="dark"] .word-toggle.connective,
-:root:not([data-theme="light"]) .word-toggle.connective {
+.word-toggle.anchor-on:hover {
+  background: rgba(176, 131, 39, 0.3);
+}
+[data-theme="dark"] .word-toggle.anchor-on,
+:root:not([data-theme="light"]) .word-toggle.anchor-on {
   color: var(--gold-soft);
-  background: rgba(216, 178, 90, 0.16);
+  background: rgba(216, 178, 90, 0.22);
 }
 
 /* Icons mode: a key word shown as its emoji memory hook. */
