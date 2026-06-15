@@ -52,6 +52,19 @@ export function PrayerChat({ passage }: Props) {
   const [perspective, setPerspective] = useState<Perspective>("BOTH");
   const [highlight, setHighlight] = useState(true);
   const [editAnchors, setEditAnchors] = useState(false);
+
+  // Per-segment role overrides (Leader/Response), seeded from the passage.
+  // In-session; lets you correct which lines are call vs. response.
+  const [editRoles, setEditRoles] = useState(false);
+  const [roles, setRoles] = useState<Record<string, SegmentRole>>(() =>
+    Object.fromEntries(passage.segments.map((s) => [s.id, s.role])),
+  );
+  const roleOf = (seg: SegmentView): SegmentRole => roles[seg.id] ?? seg.role;
+  const cycleRole = (segId: string) =>
+    setRoles((prev) => ({
+      ...prev,
+      [segId]: prev[segId] === "CALLER" ? "RESPONDER" : "CALLER",
+    }));
   const { supported, activeKey, playingAll, speak, speakAll, stop } =
     useSpeech();
 
@@ -71,11 +84,11 @@ export function PrayerChat({ passage }: Props) {
     } catch {}
   }, [stop]);
   const srcFor = useCallback(
-    (seg: SegmentView) =>
+    (seg: SegmentView, role: SegmentRole) =>
       audioSrc(
         passage.slug,
         seg.order,
-        voiceForSegment(voice, passage.dialogic, seg.role),
+        voiceForSegment(voice, passage.dialogic, role),
       ),
     [passage.slug, passage.dialogic, voice],
   );
@@ -192,7 +205,7 @@ export function PrayerChat({ passage }: Props) {
     key: s.id,
     text: s.text,
     lang: passage.language,
-    src: srcFor(s),
+    src: srcFor(s, roleOf(s)),
   }));
 
   return (
@@ -307,7 +320,8 @@ export function PrayerChat({ passage }: Props) {
       {/* Conversation */}
       <ol className="space-y-2.5">
         {passage.segments.map((seg, i) => {
-          const outgoing = isOutgoing(seg.role);
+          const role = roleOf(seg);
+          const outgoing = isOutgoing(role);
           const active = activeKey === seg.id;
           return (
             <li
@@ -318,23 +332,27 @@ export function PrayerChat({ passage }: Props) {
                 animationDelay: `${Math.min(i * 40, 600)}ms`,
               }}
             >
-              <Bubble role={seg.role} outgoing={outgoing} active={active}>
+              <Bubble role={role} outgoing={outgoing} active={active}>
                 <span className="flex items-center gap-2.5">
-                  {/* Play control lives inside the bubble, on its left */}
-                  {supported && (
-                    <PlayButton
-                      active={active}
-                      onClick={() =>
-                        active
-                          ? stop()
-                          : speak({
-                              key: seg.id,
-                              text: seg.text,
-                              lang: passage.language,
-                              src: srcFor(seg),
-                            })
-                      }
-                    />
+                  {/* When editing roles, a tappable badge flips Leader/Response */}
+                  {editRoles ? (
+                    <RoleBadge role={role} onClick={() => cycleRole(seg.id)} />
+                  ) : (
+                    supported && (
+                      <PlayButton
+                        active={active}
+                        onClick={() =>
+                          active
+                            ? stop()
+                            : speak({
+                                key: seg.id,
+                                text: seg.text,
+                                lang: passage.language,
+                                src: srcFor(seg, role),
+                              })
+                        }
+                      />
+                    )
                   )}
                   <ConnectiveText
                     text={seg.text}
@@ -355,37 +373,52 @@ export function PrayerChat({ passage }: Props) {
         })}
       </ol>
 
-      {/* Anchors — a quiet footer control under the prayer */}
+      {/* Anchors + roles — quiet footer controls under the prayer */}
       <div className="mt-8 border-t border-hairline pt-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <Labeled label="Anchors">
-            {(
-              [
-                ["hide", "Hide", <EyeOffIcon key="i" />],
-                ["show", "Show", <EyeIcon key="i" />],
-                ["edit", "Edit", <PencilIcon key="i" />],
-              ] as [AnchorMode, string, React.ReactNode][]
-            ).map(([am, label, icon]) => (
-              <Segment
-                key={am}
-                active={anchorMode === am}
-                onClick={() => setAnchorMode(am)}
-              >
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          {passage.dialogic && (
+            <Labeled label="Roles">
+              <Segment active={!editRoles} onClick={() => setEditRoles(false)}>
+                View
+              </Segment>
+              <Segment active={editRoles} onClick={() => setEditRoles(true)}>
                 <span className="inline-flex items-center gap-1.5">
-                  {icon}
-                  {label}
+                  <PencilIcon /> Edit
                 </span>
               </Segment>
-            ))}
-          </Labeled>
-          {anchorMode === "edit" && anchorsEdited && (
-            <button
-              onClick={resetAnchors}
-              className="font-sans text-sm text-ink-faint underline-offset-2 transition-colors hover:text-gold hover:underline"
-            >
-              Reset
-            </button>
+            </Labeled>
           )}
+
+          <div className="flex items-center gap-2">
+            <Labeled label="Anchors">
+              {(
+                [
+                  ["hide", "Hide", <EyeOffIcon key="i" />],
+                  ["show", "Show", <EyeIcon key="i" />],
+                  ["edit", "Edit", <PencilIcon key="i" />],
+                ] as [AnchorMode, string, React.ReactNode][]
+              ).map(([am, label, icon]) => (
+                <Segment
+                  key={am}
+                  active={anchorMode === am}
+                  onClick={() => setAnchorMode(am)}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    {icon}
+                    {label}
+                  </span>
+                </Segment>
+              ))}
+            </Labeled>
+            {anchorMode === "edit" && anchorsEdited && (
+              <button
+                onClick={resetAnchors}
+                className="font-sans text-sm text-ink-faint underline-offset-2 transition-colors hover:text-gold hover:underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
 
         {anchorMode === "edit" && (
@@ -410,6 +443,14 @@ export function PrayerChat({ passage }: Props) {
                 Sign in to save them across devices.
               </Link>
             )}
+          </p>
+        )}
+
+        {editRoles && (
+          <p className="mt-3 font-sans text-xs text-ink-faint">
+            Tap a line’s <span className="text-ink-soft">V·/R·</span> badge to
+            switch it between Leader and Response. Changes apply for this
+            session.
           </p>
         )}
       </div>
@@ -497,6 +538,26 @@ function PlayButton({
           <path d="M3 1.8v8.4c0 .5.5.8 1 .55l6.6-4.2c.4-.26.4-.84 0-1.1L4 1.25c-.5-.3-1 0-1 .55z" />
         </svg>
       )}
+    </button>
+  );
+}
+
+function RoleBadge({
+  role,
+  onClick,
+}: {
+  role: SegmentRole;
+  onClick: () => void;
+}) {
+  const isCaller = role === "CALLER";
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`This line is ${isCaller ? "the Leader" : "the Response"} — tap to switch`}
+      title="Switch Leader / Response"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/25 font-sans text-xs font-semibold ring-1 ring-white/40 transition-transform hover:scale-110"
+    >
+      {isCaller ? "V" : "R"}
     </button>
   );
 }
