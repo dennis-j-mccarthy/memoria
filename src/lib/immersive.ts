@@ -21,6 +21,7 @@ const ICONS: Record<string, string> = {
 };
 
 export interface ImmersiveLine {
+  id: string;
   role: "L" | "R";
   text: string;
   anchors: number[];
@@ -54,6 +55,7 @@ export async function getAllPrayers(): Promise<ImmersivePrayer[]> {
   for (const set of sets) {
     for (const p of set.passages) {
       const lines: ImmersiveLine[] = p.segments.map((s) => ({
+        id: s.id,
         role: s.role === "RESPONDER" ? "R" : "L",
         text: s.text,
         anchors: s.connectiveIndices,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon, PlayGlyph, PauseGlyph } from "@/components/immersive/Icon";
 import { ImmersiveRosaryMap } from "@/components/immersive/ImmersiveRosaryMap";
 import { audioSrc, type VoiceId } from "@/lib/voice";
-import type { ImmersivePrayer } from "@/lib/immersive";
+import type { ImmersivePrayer, ImmersiveLine } from "@/lib/immersive";
 
 type Route = "home" | "library" | "player" | "practice" | "profile";
 type Voices = "leader" | "response" | "both";
@@ -13,6 +13,72 @@ const SERIF = "var(--font-serif), Georgia, serif";
 const norm = (w: string) => w.toLowerCase().replace(/[^a-z']/g, "");
 const fmt = (sec: number) =>
   `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
+
+/** A prayer line in edit mode: tap words to toggle anchors, tap badge to flip role. */
+function EditableLine({
+  ln,
+  showRole,
+  onWord,
+  onRole,
+}: {
+  ln: ImmersiveLine;
+  isR: boolean;
+  showRole: boolean;
+  onWord: (wi: number) => void;
+  onRole: () => void;
+}) {
+  const ws = ln.text.split(/\s+/).filter(Boolean);
+  return (
+    <>
+      {showRole && (
+        <button
+          onClick={onRole}
+          aria-label="Flip Leader / Response"
+          style={{
+            font: "inherit",
+            fontSize: 12,
+            fontWeight: 700,
+            marginRight: 6,
+            padding: "1px 6px",
+            borderRadius: 999,
+            background: "rgba(255,255,255,.22)",
+            border: "1px solid rgba(255,255,255,.35)",
+            color: "inherit",
+            cursor: "pointer",
+            verticalAlign: "middle",
+          }}
+        >
+          {ln.role === "R" ? "R·" : "V·"}
+        </button>
+      )}
+      {ws.map((w, wi) => {
+        const a = ln.anchors.includes(wi);
+        return (
+          <span key={wi}>
+            <button
+              onClick={() => onWord(wi)}
+              style={{
+                font: "inherit",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "0 1px",
+                borderRadius: 4,
+                color: a ? "var(--gold)" : "inherit",
+                fontStyle: a ? "italic" : "normal",
+                fontWeight: a ? 600 : 400,
+                borderBottom: a ? "none" : "1px dashed rgba(127,127,127,.45)",
+              }}
+            >
+              {w}
+            </button>
+            {wi < ws.length - 1 ? " " : ""}
+          </span>
+        );
+      })}
+    </>
+  );
+}
 
 export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   const order = prayers.map((p) => p.slug);
@@ -27,6 +93,28 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   const cur = byId[pid] ?? prayers[0];
+
+  // ---- inline editing (anchors + roles), saved to canonical content --------
+  type Ov = { anchors: Record<number, number[]>; roles: Record<number, "L" | "R"> };
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Ov | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, Ov>>({});
+  const [editStatus, setEditStatus] = useState<
+    "idle" | "saving" | "saved" | "error" | "auth"
+  >("idle");
+
+  const effLines = useCallback(
+    (p: ImmersivePrayer): ImmersiveLine[] => {
+      const ov = editing && p.slug === pid ? draft : overrides[p.slug];
+      if (!ov) return p.lines;
+      return p.lines.map((ln) => ({
+        ...ln,
+        role: ov.roles[ln.order] ?? ln.role,
+        anchors: ov.anchors[ln.order] ?? ln.anchors,
+      }));
+    },
+    [editing, draft, overrides, pid],
+  );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,11 +155,12 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   // Response = female), skipping lines filtered out by the Voices toggle.
   // A hoisted function so it can schedule its own next step.
   function step(p: ImmersivePrayer, i: number) {
-    if (i >= p.lines.length) {
+    const lines = effLines(p);
+    if (i >= lines.length) {
       stopPlay();
       return;
     }
-    const ln = p.lines[i];
+    const ln = lines[i];
     const v = voicesRef.current;
     const spoken =
       v === "both" ||
@@ -111,10 +200,65 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
 
   const go = (r: Route, id?: string) => {
     stopPlay();
+    setEditing(false);
+    setDraft(null);
     setTyped("");
     setActiveLine(-1);
     if (id) setPid(id);
     setRoute(r);
+  };
+
+  const enterEdit = () => {
+    stopPlay();
+    const base = effLines(cur);
+    setDraft({
+      anchors: Object.fromEntries(base.map((l) => [l.order, [...l.anchors]])),
+      roles: Object.fromEntries(base.map((l) => [l.order, l.role])),
+    });
+    setEditStatus("idle");
+    setEditing(true);
+  };
+  const cancelEdit = () => {
+    setEditing(false);
+    setDraft(null);
+    setEditStatus("idle");
+  };
+  const toggleWordAnchor = (order: number, wi: number) =>
+    setDraft((d) => {
+      if (!d) return d;
+      const set = new Set(d.anchors[order] ?? []);
+      if (set.has(wi)) set.delete(wi);
+      else set.add(wi);
+      return { ...d, anchors: { ...d.anchors, [order]: [...set].sort((a, b) => a - b) } };
+    });
+  const flipRole = (order: number) =>
+    setDraft((d) =>
+      d ? { ...d, roles: { ...d.roles, [order]: d.roles[order] === "L" ? "R" : "L" } } : d,
+    );
+  const saveEdit = async () => {
+    if (!draft) return;
+    const d = draft;
+    setOverrides((o) => ({ ...o, [cur.slug]: d }));
+    setEditing(false);
+    setEditStatus("saving");
+    const anchors: Record<string, number[]> = {};
+    const roles: Record<string, string> = {};
+    cur.lines.forEach((ln) => {
+      anchors[ln.id] = d.anchors[ln.order] ?? ln.anchors;
+      roles[ln.id] = (d.roles[ln.order] ?? ln.role) === "R" ? "RESPONDER" : "CALLER";
+    });
+    const body: { anchors: typeof anchors; roles?: typeof roles } = { anchors };
+    if (cur.cr) body.roles = roles; // only touch roles on call-and-response prayers
+    try {
+      const res = await fetch(`/api/passages/${cur.slug}/content`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      setEditStatus(res.status === 401 ? "auth" : res.ok ? "saved" : "error");
+    } catch {
+      setEditStatus("error");
+    }
   };
 
   useEffect(() => stopPlay, [stopPlay]);
@@ -389,8 +533,9 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   // ---- PLAYER ------------------------------------------------------------
   function Player() {
     const p = cur;
+    const lines = effLines(p);
     const total = p.durSec;
-    const elapsed = activeLine >= 0 ? (total * (activeLine + 1)) / p.lines.length : 0;
+    const elapsed = activeLine >= 0 ? (total * (activeLine + 1)) / lines.length : 0;
     return (
       <div style={topPad}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -400,14 +545,14 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
           <div style={{ letterSpacing: ".22em", textTransform: "uppercase", fontSize: 10.5, color: "var(--ink-faint)", fontWeight: 700 }}>
             {p.section}
           </div>
-          <a
-            href={`/prayers/${p.slug}`}
+          <button
+            onClick={() => (editing ? cancelEdit() : enterEdit())}
             aria-label="Edit anchors & roles"
             title="Edit anchors & roles"
-            style={glass({ width: 38, height: 38, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink)" })}
+            style={glass({ width: 38, height: 38, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", color: editing ? "var(--gold)" : "var(--ink)", borderColor: editing ? "var(--gold)" : "var(--glass-border)" })}
           >
             <Icon name="edit" size={17} color="currentColor" />
-          </a>
+          </button>
         </div>
 
         {/* Halo */}
@@ -426,13 +571,19 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
         </div>
 
         {/* Where this prayer falls on the beads */}
-        <ImmersiveRosaryMap slug={p.slug} onPrayer={(s) => go("player", s)} />
+        {!editing && <ImmersiveRosaryMap slug={p.slug} onPrayer={(s) => go("player", s)} />}
+
+        {editing && (
+          <div style={{ textAlign: "center", marginTop: 16, fontSize: 12.5, color: "var(--ink-soft)" }}>
+            Tap words to set gold anchors{p.cr ? " · tap a V·/R· badge to flip the role" : ""}.
+          </div>
+        )}
 
         {/* Lines */}
-        <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 11 }}>
-          {p.lines.map((ln, i) => {
+        <div style={{ marginTop: editing ? 14 : 24, display: "flex", flexDirection: "column", gap: 11 }}>
+          {lines.map((ln, i) => {
             const isR = ln.role === "R";
-            const act = playing && activeLine === i;
+            const act = !editing && playing && activeLine === i;
             const dimmed = playing && !act;
             const bg = act ? (isR ? "var(--resp-act-bg)" : "var(--act-bg)") : isR ? "var(--resp-bubble)" : "var(--leader-bubble)";
             const bd = act ? (isR ? "var(--resp-act-bd)" : "var(--act-bd)") : isR ? "var(--resp-bd)" : "var(--leader-bd)";
@@ -456,15 +607,45 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
                     textAlign: isR ? "right" : "left",
                   }}
                 >
-                  {anchorWline(ln.text, ln.anchors, act)}
-                  {act ? <span style={{ color: "var(--gold)", marginLeft: 3, animation: "hblink 1s steps(1) infinite" }}>▍</span> : null}
+                  {editing ? (
+                    <EditableLine
+                      ln={ln}
+                      isR={isR}
+                      showRole={p.cr}
+                      onWord={(wi) => toggleWordAnchor(ln.order, wi)}
+                      onRole={() => flipRole(ln.order)}
+                    />
+                  ) : (
+                    <>
+                      {anchorWline(ln.text, ln.anchors, act)}
+                      {act ? <span style={{ color: "var(--gold)", marginLeft: 3, animation: "hblink 1s steps(1) infinite" }}>▍</span> : null}
+                    </>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
 
+        {/* Edit bar (when editing) */}
+        {editing && (
+          <div style={{ position: "sticky", bottom: 14, marginTop: "auto", paddingTop: 22, zIndex: 30 }}>
+            <div style={{ borderRadius: 22, padding: 14, background: "var(--glass-strong)", border: "1px solid var(--glass-border)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)", boxShadow: "0 16px 38px rgba(0,0,0,.4)" }}>
+              {editStatus === "auth" && (
+                <p style={{ fontSize: 12.5, color: "var(--ink-soft)", textAlign: "center", marginBottom: 10 }}>
+                  <a href="/signin?redirect=/" style={{ color: "var(--gold)", textDecoration: "underline" }}>Sign in</a> to save edits for everyone.
+                </p>
+              )}
+              <div style={{ display: "flex", gap: 9 }}>
+                <button onClick={cancelEdit} style={{ flex: 1, color: "var(--ink)", border: "1px solid var(--chip-bd)", borderRadius: 999, padding: 11, fontSize: 14, fontWeight: 600, background: "var(--chip-bg)" }}>Cancel</button>
+                <button onClick={saveEdit} style={{ flex: 1, color: "var(--gold-text)", border: "none", borderRadius: 999, padding: 11, fontSize: 14, fontWeight: 700, background: "var(--play-grad)", boxShadow: "var(--play-glow)" }}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Dock */}
+        {!editing && (
         <div style={{ position: "sticky", bottom: 14, marginTop: "auto", paddingTop: 22, zIndex: 30 }}>
           <div
             style={{
@@ -506,6 +687,7 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             </div>
           </div>
         </div>
+        )}
       </div>
     );
   }
