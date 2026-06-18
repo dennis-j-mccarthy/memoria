@@ -5,6 +5,7 @@ import { RosaryDiagram } from "@/components/RosaryDiagram";
 import {
   beadPrayers,
   devotionForSlug,
+  devotionPrayers,
   ROSARY_BEADS,
   type BeadType,
 } from "@/lib/rosary";
@@ -27,6 +28,11 @@ export function ImmersiveRosaryMap({
 
   const note = ROSARY_BEADS[slug];
   const title = devotion === "chaplet" ? "On the chaplet beads" : "Where in the Rosary";
+  // The other prayers prayed in this devotion — listed so they're reachable
+  // without hunting for the right (often un-highlighted) bead.
+  const companions = devotionPrayers(devotion).filter((p) => p.slug !== slug);
+  const companionsLabel =
+    devotion === "chaplet" ? "Prayed with the chaplet" : "Prayed with the Rosary";
 
   function handlePick(type: BeadType) {
     const prayers = beadPrayers(devotion!, type);
@@ -94,6 +100,47 @@ export function ImmersiveRosaryMap({
               </button>
             );
           })}
+        </div>
+      )}
+      {companions.length > 0 && (
+        <div style={{ marginTop: 16, borderTop: "1px solid var(--glass-border)", paddingTop: 14 }}>
+          <div
+            style={{
+              letterSpacing: ".16em",
+              textTransform: "uppercase",
+              fontSize: 10,
+              fontWeight: 700,
+              color: "var(--ink-faint)",
+              textAlign: "center",
+              marginBottom: 10,
+            }}
+          >
+            {companionsLabel}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
+            {companions.map((pr) => (
+              <button
+                key={pr.slug}
+                onClick={() => onPrayer(pr.slug)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  borderRadius: 999,
+                  padding: "7px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "var(--font-serif), Georgia, serif",
+                  background: "var(--chip-bg)",
+                  color: "var(--ink)",
+                  border: "1px solid var(--chip-bd)",
+                }}
+              >
+                {pr.title}
+                <span aria-hidden>→</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

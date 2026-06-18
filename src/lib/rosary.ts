@@ -130,3 +130,74 @@ export function devotionForSlug(slug: string): Devotion | null {
 export function beadPrayers(devotion: Devotion, type: BeadType): PrayerRef[] {
   return BEAD_PRAYERS_BY_DEVOTION[devotion][type];
 }
+
+// Beads in praying order, so a devotion's prayers list reads top-to-bottom.
+const BEAD_ORDER: BeadType[] = [
+  "crucifix",
+  "pendantOF",
+  "pendantHM",
+  "decadeOF",
+  "decadeHM",
+  "afterDecade",
+  "centerpiece",
+];
+
+/**
+ * Every distinct prayer prayed in a devotion, in praying order (deduped by
+ * slug — a prayer said on several beads appears once). Lets the Player list a
+ * prayer's companions instead of hiding them behind tapping dim beads.
+ */
+export function devotionPrayers(devotion: Devotion): PrayerRef[] {
+  const seen = new Set<string>();
+  const out: PrayerRef[] = [];
+  for (const type of BEAD_ORDER) {
+    for (const pr of BEAD_PRAYERS_BY_DEVOTION[devotion][type]) {
+      if (seen.has(pr.slug)) continue;
+      seen.add(pr.slug);
+      out.push(pr);
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Library collections. A prayer can belong to more than one devotion
+ * (the Our Father, Hail Mary, Glory Be and Apostles' Creed are prayed
+ * in both the Rosary and the Chaplet of Divine Mercy), so collections
+ * reference prayers by slug rather than owning them. The shared prayers
+ * appear under every collection that uses them — intentional overlap.
+ * Any prayer not named in a collection falls through to a catch-all
+ * group in the Library, so newly seeded prayers never disappear.
+ * ------------------------------------------------------------------ */
+export interface Collection {
+  title: string;
+  slugs: string[]; // in praying order; may repeat slugs across collections
+}
+
+export const COLLECTIONS: Collection[] = [
+  {
+    title: "The Rosary",
+    slugs: [
+      "sign-of-the-cross",
+      "apostles-creed",
+      "our-father",
+      "hail-mary",
+      "joyful-mysteries",
+      "glory-be",
+      "o-my-jesus",
+      "hail-holy-queen",
+      "concluding-prayer",
+    ],
+  },
+  {
+    title: "Divine Mercy",
+    slugs: [
+      "sign-of-the-cross",
+      "apostles-creed",
+      "our-father",
+      "hail-mary",
+      "glory-be",
+      "divine-mercy-chaplet",
+    ],
+  },
+];

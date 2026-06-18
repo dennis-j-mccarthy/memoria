@@ -5,6 +5,7 @@ import { Icon, PlayGlyph, PauseGlyph } from "@/components/immersive/Icon";
 import { ImmersiveRosaryMap } from "@/components/immersive/ImmersiveRosaryMap";
 import { ImmersiveRecite } from "@/components/immersive/ImmersiveRecite";
 import { audioSrc, type VoiceId } from "@/lib/voice";
+import { COLLECTIONS } from "@/lib/rosary";
 import type { ImmersivePrayer, ImmersiveLine } from "@/lib/immersive";
 
 type Route = "home" | "library" | "player" | "practice" | "profile";
@@ -101,9 +102,16 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
   const [voices, setVoices] = useState<Voices>("both");
   const [typed, setTyped] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  // Last prayer opened in the Player — powers "Continue" on the dashboard.
+  // Per-device (localStorage); the DB progress models aren't wired up yet.
+  const [lastSlug, setLastSlug] = useState<string | null>(null);
+  // Greeting is time-of-day dependent; compute on the client (mount effect) so
+  // it can't cause an SSR/hydration mismatch.
+  const [greeting, setGreeting] = useState("Welcome back");
 
   // Practice: choose an exercise (recite by voice / type) and show anchors or not.
   const [exercise, setExercise] = useState<"recite" | "type">("recite");
+  const [reciteMode, setReciteMode] = useState<"line" | "buildup">("line");
   const [anchorsOn, setAnchorsOn] = useState(true);
   const [lineIdx, setLineIdx] = useState(0); // current line in the typing test
   const [lineResults, setLineResults] = useState<{ ok: number; total: number }[]>([]);
@@ -153,7 +161,63 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     const t = document.documentElement.getAttribute("data-theme");
     // eslint-disable-next-line react-hooks/set-state-in-effect -- read resolved theme once
     if (t === "light") setTheme("light");
+    try {
+      const saved = localStorage.getItem("memoria-last");
+      if (saved && byId[saved]) setLastSlug(saved);
+    } catch {}
+    const h = new Date().getHours();
+    setGreeting(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
+
+  // ---- URL deep-linking --------------------------------------------------
+  // The screen is in-app state, not a route; mirror it in the query string
+  // (?view&prayer&ex&mode) so Practice / Recite / Build-up are shareable and
+  // survive a refresh. Read once on load, then write on every state change.
+  const urlInited = useRef(false);
+  const skipFirstWrite = useRef(false);
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- restore screen from URL once on mount */
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const v = q.get("view");
+      const pr = q.get("prayer");
+      const ex = q.get("ex");
+      const m = q.get("mode");
+      const hasPrayer = !!(pr && byId[pr]);
+      if (hasPrayer) setPid(pr!);
+      if (v === "library" || v === "profile") setRoute(v);
+      else if ((v === "player" || v === "practice") && hasPrayer) setRoute(v);
+      if (ex === "recite" || ex === "type") setExercise(ex);
+      if (m === "line" || m === "buildup") setReciteMode(m);
+    } catch {}
+    /* eslint-enable react-hooks/set-state-in-effect */
+    urlInited.current = true;
+    skipFirstWrite.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  useEffect(() => {
+    if (!urlInited.current) return;
+    // The first write after the load-time read would run with pre-restore state
+    // and clobber the deep link; skip it.
+    if (skipFirstWrite.current) {
+      skipFirstWrite.current = false;
+      return;
+    }
+    try {
+      const q = new URLSearchParams();
+      if (route !== "home") q.set("view", route);
+      if (route === "player" || route === "practice") q.set("prayer", pid);
+      if (route === "practice") {
+        q.set("ex", exercise);
+        if (exercise === "recite") q.set("mode", reciteMode);
+      }
+      const qs = q.toString();
+      window.history.replaceState(null, "", qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    } catch {}
+  }, [route, pid, exercise, reciteMode]);
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -233,6 +297,12 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     setLineResults([]);
     setTyped("");
     if (id) setPid(id);
+    if (r === "player" && id) {
+      setLastSlug(id);
+      try {
+        localStorage.setItem("memoria-last", id);
+      } catch {}
+    }
     setRoute(r);
   };
 
@@ -445,15 +515,42 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
     );
   }
 
-  // ---- HOME --------------------------------------------------------------
+  // ---- HOME (dashboard) --------------------------------------------------
   function Home() {
     const feat = byId[order[1]] ?? cur;
+    const resume = lastSlug ? byId[lastSlug] : null;
+
+    // Placeholder figures until DB progress (PracticeSession/MasteryState) is wired up.
+    const stats: [string, string][] = [
+      ["12", "day streak"],
+      ["4", "by heart"],
+      ["38", "sessions"],
+    ];
+
+    const quick = (icon: string, label: string, sub: string, onClick: () => void) => (
+      <button
+        key={label}
+        onClick={onClick}
+        style={glass({ display: "flex", alignItems: "center", gap: 11, padding: "13px 14px", borderRadius: 16, textAlign: "left", width: "100%" })}
+      >
+        <div style={{ width: 38, height: 38, borderRadius: 11, background: "var(--icon-grad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon name={icon} size={17} color="var(--icon-stroke)" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, color: "var(--ink)", fontWeight: 600 }}>{label}</div>
+          <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{sub}</div>
+        </div>
+        <Icon name="next" size={15} color="var(--ink-faint)" />
+      </button>
+    );
+
     return (
       <div style={topPad}>
+        {/* Greeting + brand */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ letterSpacing: ".18em", textTransform: "uppercase", fontSize: 10.5, color: "var(--ink-faint)", fontWeight: 700 }}>
-              Pray by heart
+              {greeting}
             </div>
             <div style={{ fontFamily: SERIF, fontSize: 26, color: "var(--ink)", marginTop: 1 }}>
               Memoria
@@ -463,17 +560,30 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             <button onClick={toggleTheme} aria-label="Toggle theme" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 999, background: "var(--chip-bg)", border: "1px solid var(--chip-bd)", color: "var(--gold)" }}>
               <Icon name={theme === "dark" ? "sun" : "moon"} size={16} color="currentColor" />
             </button>
-            <div style={{ width: 34, height: 34, borderRadius: 999, background: "linear-gradient(135deg,#C99A38,#7E5A1E)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: 16, color: "#0A0C18", fontWeight: 600, border: "1px solid rgba(255,255,255,.18)" }}>
+            <button onClick={() => go("profile")} aria-label="You" style={{ width: 34, height: 34, borderRadius: 999, background: "linear-gradient(135deg,#C99A38,#7E5A1E)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: 16, color: "#0A0C18", fontWeight: 600, border: "1px solid rgba(255,255,255,.18)" }}>
               A
-            </div>
+            </button>
           </div>
         </div>
 
-        {/* Featured */}
+        {/* Stats strip (placeholder figures) */}
+        <button
+          onClick={() => go("profile")}
+          style={{ display: "flex", gap: 9, marginTop: 16, width: "100%", background: "none", border: "none", padding: 0 }}
+        >
+          {stats.map(([n, l]) => (
+            <div key={l} style={glass({ flex: 1, borderRadius: 16, padding: "13px 8px", textAlign: "center" })}>
+              <div style={{ fontFamily: SERIF, fontSize: 24, color: "var(--ink)" }}>{n}</div>
+              <div style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>{l}</div>
+            </div>
+          ))}
+        </button>
+
+        {/* Today's featured prayer */}
         <button
           onClick={() => go("player", feat.slug)}
           style={{
-            marginTop: 18,
+            marginTop: 16,
             borderRadius: 26,
             padding: 22,
             minHeight: 238,
@@ -486,6 +596,7 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             background: "var(--feat-grad)",
             boxShadow: "0 22px 50px rgba(0,0,0,.25)",
             textAlign: "left",
+            width: "100%",
           }}
         >
           <div style={{ position: "absolute", width: 200, height: 200, borderRadius: 999, right: -50, top: -60, background: "radial-gradient(circle,var(--feat-g1),transparent 65%)" }} />
@@ -514,13 +625,37 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
           </div>
         </button>
 
-        {/* The Rosary list */}
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "24px 0 11px" }}>
-          <div style={{ fontFamily: SERIF, fontSize: 21, color: "var(--ink)" }}>The Rosary</div>
-          <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{prayers.length} prayers</span>
+        {/* Continue where you left off */}
+        {resume && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--ink-faint)", margin: "24px 0 11px" }}>
+              Continue
+            </div>
+            <button
+              onClick={() => go("player", resume.slug)}
+              style={glass({ display: "flex", alignItems: "center", gap: 13, padding: "12px 13px", borderRadius: 16, textAlign: "left", width: "100%" })}
+            >
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: "var(--icon-grad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name={resume.icon} size={18} color="var(--icon-stroke)" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: SERIF, fontSize: 18, color: "var(--ink)" }}>{resume.title}</div>
+                <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>Pick up where you left off</div>
+              </div>
+              <div style={{ width: 32, height: 32, borderRadius: 999, background: "var(--chip-bg)", border: "1px solid var(--chip-bd)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <PlayGlyph color="var(--ink)" size={11} />
+              </div>
+            </button>
+          </>
+        )}
+
+        {/* Quick actions */}
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--ink-faint)", margin: "24px 0 11px" }}>
+          Jump in
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-          {prayers.slice(0, 5).map((p) => PrayerRow(p))}
+          {quick("target", "Practice", "Recite or type from memory", () => go("practice", feat.slug))}
+          {quick("book", "Browse the Library", `${prayers.length} prayers · Rosary, Divine Mercy & more`, () => go("library"))}
         </div>
 
         {TabBar()}
@@ -530,7 +665,22 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
 
   // ---- LIBRARY -----------------------------------------------------------
   function Library() {
-    const sections = Array.from(new Set(prayers.map((p) => p.section)));
+    // Curated collections (The Rosary, Divine Mercy) reference prayers by slug,
+    // so shared prayers appear under each devotion that prays them. Whatever a
+    // collection doesn't name falls through to a catch-all so nothing is lost.
+    const named = new Set(COLLECTIONS.flatMap((c) => c.slugs));
+    const groups: { title: string; items: ImmersivePrayer[] }[] = COLLECTIONS.map(
+      (c) => ({
+        title: c.title,
+        items: c.slugs.map((s) => byId[s]).filter(Boolean),
+      }),
+    ).filter((g) => g.items.length > 0);
+
+    const leftover = prayers.filter((p) => !named.has(p.slug));
+    if (leftover.length > 0) {
+      groups.push({ title: "Prayers & Devotions", items: leftover });
+    }
+
     return (
       <div style={topPad}>
         <div style={{ marginTop: 2 }}>
@@ -541,13 +691,13 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             Library
           </div>
         </div>
-        {sections.map((sec) => (
-          <div key={sec}>
+        {groups.map((g) => (
+          <div key={g.title}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--ink-faint)", margin: "22px 0 11px" }}>
-              {sec}
+              {g.title}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-              {prayers.filter((p) => p.section === sec).map((p) => PrayerRow(p))}
+              {g.items.map((p) => PrayerRow(p))}
             </div>
           </div>
         ))}
@@ -786,6 +936,8 @@ export function Immersive({ prayers }: { prayers: ImmersivePrayer[] }) {
             key={`${pid}-${anchorsOn}`}
             prayer={{ ...p, lines: effLines(p) }}
             anchorsOn={anchorsOn}
+            mode={reciteMode}
+            onModeChange={setReciteMode}
           />
         </div>
       );

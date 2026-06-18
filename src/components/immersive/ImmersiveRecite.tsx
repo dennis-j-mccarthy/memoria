@@ -45,9 +45,13 @@ function DockBtn({ onClick, children }: { onClick: () => void; children: React.R
 export function ImmersiveRecite({
   prayer,
   anchorsOn,
+  mode,
+  onModeChange,
 }: {
   prayer: ImmersivePrayer;
   anchorsOn: boolean;
+  mode: "line" | "buildup";
+  onModeChange: (m: "line" | "buildup") => void;
 }) {
   const lines = prayer.lines;
   const words = useMemo(
@@ -64,7 +68,8 @@ export function ImmersiveRecite({
     [anchorsOn, prayer.lines],
   );
 
-  const [practice, setPractice] = useState<"line" | "buildup">("line");
+  // Mode is controlled by the parent so it can be reflected in the URL.
+  const practice = mode;
   const [target, setTarget] = useState(1);
   const [heard, setHeard] = useState<Record<string, Set<number>>>(() =>
     Object.fromEntries(lines.map((l) => [l.id, new Set<number>()])),
@@ -243,7 +248,7 @@ export function ImmersiveRecite({
     (m: "line" | "buildup") => {
       stop();
       speech.stop();
-      setPractice(m);
+      onModeChange(m);
       targetRef.current = 1;
       setTarget(1);
       const fh = freshHeard();
@@ -254,7 +259,7 @@ export function ImmersiveRecite({
       setCursor(0);
       setActiveId(null);
     },
-    [stop, speech, freshHeard],
+    [stop, speech, freshHeard, onModeChange],
   );
 
   const isBuildup = practice === "buildup";
