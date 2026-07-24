@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { RosaryDiagram } from "@/components/RosaryDiagram";
 import {
+  adjacentPrayers,
   beadPrayers,
   devotionForSlug,
-  devotionPrayers,
-  ROSARY_BEADS,
+  DEVOTIONS,
+  DEVOTION_LABEL,
   type BeadType,
+  type Devotion,
 } from "@/lib/rosary";
 
 /**
@@ -18,24 +20,24 @@ import {
 export function ImmersiveRosaryMap({
   slug,
   onPrayer,
+  onPractice,
+  textFor,
 }: {
   slug: string;
   onPrayer: (slug: string) => void;
+  onPractice?: (slug: string) => void;
+  textFor?: (slug: string) => string[] | null;
 }) {
   const devotion = devotionForSlug(slug);
   const [picked, setPicked] = useState<BeadType | null>(null);
+  // Which devotion's beads are showing; the tabs flip between the two diagrams.
+  const [active, setActive] = useState<Devotion>(devotion ?? "rosary");
   if (!devotion) return null;
 
-  const note = ROSARY_BEADS[slug];
-  const title = devotion === "chaplet" ? "On the chaplet beads" : "Where in the Rosary";
-  // The other prayers prayed in this devotion — listed so they're reachable
-  // without hunting for the right (often un-highlighted) bead.
-  const companions = devotionPrayers(devotion).filter((p) => p.slug !== slug);
-  const companionsLabel =
-    devotion === "chaplet" ? "Prayed with the chaplet" : "Prayed with the Rosary";
+  const { prev, next } = adjacentPrayers(active, slug);
 
   function handlePick(type: BeadType) {
-    const prayers = beadPrayers(devotion!, type);
+    const prayers = beadPrayers(active, type);
     if (prayers.length === 1) onPrayer(prayers[0].slug);
     else setPicked(type);
   }
@@ -51,31 +53,48 @@ export function ImmersiveRosaryMap({
       }}
     >
       <div
-        style={{
-          letterSpacing: ".16em",
-          textTransform: "uppercase",
-          fontSize: 10.5,
-          fontWeight: 700,
-          color: "var(--gold)",
-          textAlign: "center",
-        }}
+        role="tablist"
+        aria-label="Devotion"
+        style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 4 }}
       >
-        {title}
+        {DEVOTIONS.map((d) => {
+          const on = d === active;
+          return (
+            <button
+              key={d}
+              role="tab"
+              aria-selected={on}
+              onClick={() => setActive(d)}
+              style={{
+                borderRadius: 999,
+                padding: "5px 14px",
+                fontSize: 12.5,
+                fontWeight: 700,
+                fontFamily: "var(--font-serif), Georgia, serif",
+                cursor: "pointer",
+                background: on ? "var(--gold)" : "var(--chip-bg)",
+                color: on ? "var(--gold-text)" : "var(--ink-soft)",
+                border: "1px solid " + (on ? "var(--gold)" : "var(--chip-bd)"),
+              }}
+            >
+              {DEVOTION_LABEL[d]}
+            </button>
+          );
+        })}
       </div>
       <RosaryDiagram
         slug={slug}
-        devotion={devotion}
+        devotion={active}
         picked={picked}
         onPick={handlePick}
+        onPractice={onPractice}
+        textFor={textFor}
+        onPrev={prev ? () => onPrayer(prev.slug) : undefined}
+        onNext={next ? () => onPrayer(next.slug) : undefined}
       />
-      {note && (
-        <p style={{ fontSize: 12.5, color: "var(--ink-soft)", textAlign: "center", marginTop: 6, lineHeight: 1.5 }}>
-          {note}
-        </p>
-      )}
       {picked && (
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 12 }}>
-          {beadPrayers(devotion, picked).map((pr) => {
+          {beadPrayers(active, picked).map((pr) => {
             const current = pr.slug === slug;
             return (
               <button
@@ -100,47 +119,6 @@ export function ImmersiveRosaryMap({
               </button>
             );
           })}
-        </div>
-      )}
-      {companions.length > 0 && (
-        <div style={{ marginTop: 16, borderTop: "1px solid var(--glass-border)", paddingTop: 14 }}>
-          <div
-            style={{
-              letterSpacing: ".16em",
-              textTransform: "uppercase",
-              fontSize: 10,
-              fontWeight: 700,
-              color: "var(--ink-faint)",
-              textAlign: "center",
-              marginBottom: 10,
-            }}
-          >
-            {companionsLabel}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
-            {companions.map((pr) => (
-              <button
-                key={pr.slug}
-                onClick={() => onPrayer(pr.slug)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  borderRadius: 999,
-                  padding: "7px 14px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: "var(--font-serif), Georgia, serif",
-                  background: "var(--chip-bg)",
-                  color: "var(--ink)",
-                  border: "1px solid var(--chip-bd)",
-                }}
-              >
-                {pr.title}
-                <span aria-hidden>→</span>
-              </button>
-            ))}
-          </div>
         </div>
       )}
     </div>

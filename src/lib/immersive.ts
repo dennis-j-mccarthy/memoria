@@ -20,6 +20,15 @@ const ICONS: Record<string, string> = {
   "divine-mercy-chaplet": "flame",
 };
 
+// Fallback icon by content set, when a slug isn't in ICONS above.
+const SET_ICON: Record<string, string> = {
+  "sacred-scripture": "book",
+  poems: "bookmark",
+};
+
+// Sets that are solo readings, not call-and-response prayers.
+const READING_SETS = new Set(["sacred-scripture", "poems"]);
+
 export interface ImmersiveLine {
   id: string;
   role: "L" | "R";
@@ -68,8 +77,8 @@ export async function getAllPrayers(): Promise<ImmersivePrayer[]> {
         slug: p.slug,
         title: p.title,
         sub: p.source,
-        cr: p.dialogic,
-        icon: ICONS[p.slug] ?? "cross",
+        cr: !READING_SETS.has(set.slug), // prayers are call-and-response; readings are solo
+        icon: ICONS[p.slug] ?? SET_ICON[set.slug] ?? "cross",
         dur,
         durSec: sec,
         language: p.language,

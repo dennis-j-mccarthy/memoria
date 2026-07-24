@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 128">
+  <!-- Placeholder Marian icon (Our Lady, veiled, with an aureole of rays).
+       Swap this file for the real Our Lady of Guadalupe artwork (keep the
+       filename, transparent background) and the medallion updates. -->
+  <g fill="#12324e">
+    <!-- aureole rays -->
+    <g stroke="#12324e" stroke-width="2.6" stroke-linecap="round">
+      <path d="M50 3v9M68 7l-4 8M83 18l-6 6M92 34l-8 4M96 54h-9M92 74l-8-4M83 90l-6-6M32 7l4 8M17 18l6 6M8 34l8 4M4 54h9M8 74l8-4M17 90l6-6"/>
+    </g>
+    <!-- mantle / veil -->
+    <path d="M50 14c-13 0-21 10-22 24-1 8 1 15 4 21-4 8-6 20-6 35 0 12 2 22 5 30h38c3-8 5-18 5-30 0-15-2-27-6-35 3-6 5-13 4-21-1-14-9-24-22-24z"/>
+    <!-- face -->
+    <ellipse cx="50" cy="42" rx="8.5" ry="10.5" fill="#e9d6c2"/>
+    <!-- joined hands -->
+    <path d="M50 60c-3 2-5 6-5 11l5 3 5-3c0-5-2-9-5-11z" fill="#e9d6c2"/>
+  </g>
+</svg>

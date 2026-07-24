@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RosaryDiagram } from "@/components/RosaryDiagram";
 import {
+  adjacentPrayers,
   beadPrayers,
   BEAD_PRAYERS_BY_DEVOTION,
+  DEVOTIONS,
+  DEVOTION_LABEL,
   type BeadType,
   type Devotion,
 } from "@/lib/rosary";
@@ -33,9 +37,13 @@ export function RosaryPosition({
   const router = useRouter();
   const params = useSearchParams();
   const picked = asBeadType(params.get("bead"));
+  // Which devotion's beads are showing. Defaults to the prayer's own, but the
+  // tabs let you flip to the other diagram (both share the same beads).
+  const [active, setActive] = useState<Devotion>(devotion);
+  const { prev, next } = adjacentPrayers(active, slug);
 
   function handlePick(type: BeadType) {
-    const prayers = beadPrayers(devotion, type);
+    const prayers = beadPrayers(active, type);
     if (prayers.length === 1) {
       router.push(`/prayers/${prayers[0].slug}`);
     } else {
@@ -44,24 +52,44 @@ export function RosaryPosition({
     }
   }
 
-  const title = devotion === "chaplet" ? "On the chaplet beads" : "Where in the Rosary";
-
   return (
     <div className="mb-6">
       <div className="rounded-xl border border-hairline bg-parchment-raised">
-        <p className="flex items-center gap-2 px-4 pt-3 font-sans text-sm font-medium text-ink-soft">
-          <span aria-hidden>📿</span> {title}
-        </p>
-        <div className="px-4 pb-4">
+        <div role="tablist" aria-label="Devotion" className="flex items-center gap-1 border-b border-hairline px-3 pt-2">
+          <span aria-hidden className="px-1 pb-2 text-sm">📿</span>
+          {DEVOTIONS.map((d) => {
+            const on = d === active;
+            return (
+              <button
+                key={d}
+                role="tab"
+                aria-selected={on}
+                onClick={() => setActive(d)}
+                className={`-mb-px rounded-t-lg border-b-2 px-3 py-2 font-sans text-sm font-medium transition-colors ${
+                  on
+                    ? "border-gold text-gold"
+                    : "border-transparent text-ink-faint hover:text-ink-soft"
+                }`}
+              >
+                {DEVOTION_LABEL[d]}
+              </button>
+            );
+          })}
+        </div>
+        <div className="px-4 pb-4 pt-3">
           <RosaryDiagram
             slug={slug}
-            devotion={devotion}
+            devotion={active}
             picked={picked}
             onPick={handlePick}
+            onPrev={prev ? () => router.push(`/prayers/${prev.slug}`) : undefined}
+            onNext={next ? () => router.push(`/prayers/${next.slug}`) : undefined}
           />
-          <p className="mt-2 font-sans text-sm leading-relaxed text-ink-soft">
-            {note}
-          </p>
+          {active === devotion && (
+            <p className="mt-2 font-sans text-sm leading-relaxed text-ink-soft">
+              {note}
+            </p>
+          )}
         </div>
       </div>
 
@@ -71,7 +99,7 @@ export function RosaryPosition({
             On this bead — open a prayer
           </p>
           <ul className="mt-2 flex flex-wrap items-center gap-2">
-            {beadPrayers(devotion, picked).map((p) => {
+            {beadPrayers(active, picked).map((p) => {
               const current = p.slug === slug;
               return (
                 <li key={p.slug}>

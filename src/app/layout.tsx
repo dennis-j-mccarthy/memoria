@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Barlow } from "next/font/google";
+import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 
-// Cormorant Garamond — the sacred voice (display + all prayer text).
-const serif = Cormorant_Garamond({
+// Fraunces — a modern, warm display serif for headings + prayer text.
+const serif = Fraunces({
   variable: "--font-serif",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
   display: "swap",
 });
 
-// Barlow — UI / labels / body.
-const sans = Barlow({
+// Inter — clean modern UI / labels / body.
+const sans = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -30,10 +30,10 @@ const themeScript = `
 (function () {
   try {
     var t = localStorage.getItem('memoria-theme');
-    // Dark "Candlelight" is the hero look; default to it unless a pref is set.
-    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+    // Clean "Daylight" (white) is the default; dark is opt-in / immersive.
+    document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
   } catch (e) {
-    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'light');
   }
 })();
 `;
@@ -47,6 +47,10 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${serif.variable} ${sans.variable} h-full antialiased`}
+      // The inline themeScript sets data-theme before hydration (to avoid a
+      // light-mode flash), and browser extensions add their own attributes
+      // (e.g. data-kantu) — both land on <html>, so tolerate the mismatch here.
+      suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

@@ -1,0 +1,31 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "memoria",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5122"],
+      "port": 5122
+    },
+    {
+      "name": "brand-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8123", "-d", "/private/tmp/claude-401584223/-Users-dennis-mccarthy-memoria/d7eebcbe-8c18-4575-838a-0afb6e6eacfd/scratchpad/inktask-brand"],
+      "port": 8123
+    },
+    {
+      "name": "slate-portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/dennis.mccarthy/slate-portal-poc"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "inktask",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/dennis.mccarthy/dev/inktask"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

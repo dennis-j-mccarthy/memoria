@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { db } from "@/lib/db";
 
 /**
@@ -67,6 +68,20 @@ const SETS = [
     description:
       "Foundational prayers and devotions of the Catholic tradition, marked up for recitation practice.",
     sortOrder: 1,
+  },
+  {
+    slug: "sacred-scripture",
+    title: "Sacred Scripture",
+    description:
+      "Key verses of the Bible to take to heart, in the public-domain Douay-Rheims (Challoner) translation.",
+    sortOrder: 2,
+  },
+  {
+    slug: "poems",
+    title: "Poems",
+    description:
+      "Poems worth committing to memory — beauty, faith, and the world, from the public domain.",
+    sortOrder: 3,
   },
 ];
 
@@ -357,18 +372,368 @@ const PRAYERS: SeedPassage[] = [
     popularity: 70,
     lines: [
       { text: "O God, whose only begotten Son," },
-      { text: "by his life, death, and resurrection," },
-      { text: "has purchased for us the rewards of eternal life;" },
-      { text: "grant, we beseech thee," },
+      { text: "by His life, death, and resurrection," },
+      { text: "has purchased for us the rewards of eternal life," },
+      { text: "grant, we beseech Thee," },
       { text: "that meditating upon these mysteries" },
-      { text: "of the most holy Rosary of the Blessed Virgin Mary," },
+      { text: "of the Most Holy Rosary of the Blessed Virgin Mary," },
       { text: "we may imitate what they contain" },
       { text: "and obtain what they promise," },
       { text: "through the same Christ our Lord." },
       { text: "Amen." },
     ],
   },
+
+  // ---- Sacred Scripture (Douay-Rheims, Challoner — public domain) ----------
+  {
+    slug: "john-3-16",
+    title: "John 3:16",
+    set: "sacred-scripture",
+    source: "For God so loved the world",
+    tags: ["scripture"],
+    popularity: 60,
+    lines: [
+      { text: "For God so loved the world," },
+      { text: "as to give his only begotten Son;" },
+      { text: "that whosoever believeth in him, may not perish," },
+      { text: "but may have life everlasting." },
+    ],
+  },
+  {
+    slug: "psalm-23",
+    title: "Psalm 23",
+    set: "sacred-scripture",
+    source: "The Lord ruleth me",
+    tags: ["scripture", "psalm"],
+    popularity: 59,
+    lines: [
+      { text: "The Lord ruleth me: and I shall want nothing." },
+      { text: "He hath set me in a place of pasture." },
+      { text: "He hath brought me up, on the water of refreshment:" },
+      { text: "he hath converted my soul." },
+      { text: "He hath led me on the paths of justice, for his own name's sake." },
+      { text: "For though I should walk in the midst of the shadow of death," },
+      { text: "I will fear no evils, for thou art with me." },
+      { text: "Thy rod and thy staff, they have comforted me." },
+    ],
+  },
+  {
+    slug: "john-14-6",
+    title: "John 14:6",
+    set: "sacred-scripture",
+    source: "I am the way, and the truth, and the life",
+    tags: ["scripture"],
+    popularity: 58,
+    lines: [
+      { text: "I am the way, and the truth, and the life." },
+      { text: "No man cometh to the Father, but by me." },
+    ],
+  },
+  {
+    slug: "philippians-4-13",
+    title: "Philippians 4:13",
+    set: "sacred-scripture",
+    source: "I can do all things in him",
+    tags: ["scripture"],
+    popularity: 57,
+    lines: [
+      { text: "I can do all things in him who strengtheneth me." },
+    ],
+  },
+  {
+    slug: "matthew-11-28",
+    title: "Matthew 11:28",
+    set: "sacred-scripture",
+    source: "Come to me, all you that labour",
+    tags: ["scripture"],
+    popularity: 56,
+    lines: [
+      { text: "Come to me, all you that labour, and are burdened," },
+      { text: "and I will refresh you." },
+    ],
+  },
+  {
+    slug: "romans-8-28",
+    title: "Romans 8:28",
+    set: "sacred-scripture",
+    source: "All things work together unto good",
+    tags: ["scripture"],
+    popularity: 55,
+    lines: [
+      { text: "And we know that to them that love God," },
+      { text: "all things work together unto good," },
+      { text: "to such as, according to his purpose, are called to be saints." },
+    ],
+  },
+  {
+    slug: "isaiah-41-10",
+    title: "Isaiah 41:10",
+    set: "sacred-scripture",
+    source: "Fear not, for I am with thee",
+    tags: ["scripture"],
+    popularity: 54,
+    lines: [
+      { text: "Fear not, for I am with thee:" },
+      { text: "turn not aside, for I am thy God:" },
+      { text: "I have strengthened thee, and have helped thee," },
+      { text: "and the right hand of my just one hath upheld thee." },
+    ],
+  },
+  {
+    slug: "proverbs-3-5",
+    title: "Proverbs 3:5",
+    set: "sacred-scripture",
+    source: "Have confidence in the Lord",
+    tags: ["scripture"],
+    popularity: 53,
+    lines: [
+      { text: "Have confidence in the Lord with all thy heart," },
+      { text: "and lean not upon thy own prudence." },
+    ],
+  },
+  {
+    slug: "philippians-4-6-7",
+    title: "Philippians 4:6-7",
+    set: "sacred-scripture",
+    source: "The peace of God which surpasseth all understanding",
+    tags: ["scripture"],
+    popularity: 52,
+    lines: [
+      { text: "Be nothing solicitous;" },
+      { text: "but in every thing, by prayer and supplication, with thanksgiving," },
+      { text: "let your petitions be made known to God." },
+      { text: "And the peace of God, which surpasseth all understanding," },
+      { text: "keep your hearts and minds in Christ Jesus." },
+    ],
+  },
+  {
+    slug: "first-corinthians-13-4-7",
+    title: "1 Corinthians 13:4-7",
+    set: "sacred-scripture",
+    source: "Charity is patient, is kind",
+    tags: ["scripture"],
+    popularity: 51,
+    lines: [
+      { text: "Charity is patient, is kind:" },
+      { text: "charity envieth not, dealeth not perversely;" },
+      { text: "is not puffed up; is not ambitious," },
+      { text: "seeketh not her own, is not provoked to anger," },
+      { text: "thinketh no evil;" },
+      { text: "rejoiceth not in iniquity, but rejoiceth with the truth;" },
+      { text: "beareth all things, believeth all things," },
+      { text: "hopeth all things, endureth all things." },
+    ],
+  },
+  {
+    slug: "john-1-1",
+    title: "John 1:1",
+    set: "sacred-scripture",
+    source: "In the beginning was the Word",
+    tags: ["scripture"],
+    popularity: 50,
+    lines: [
+      { text: "In the beginning was the Word," },
+      { text: "and the Word was with God," },
+      { text: "and the Word was God." },
+    ],
+  },
+  {
+    slug: "matthew-6-33",
+    title: "Matthew 6:33",
+    set: "sacred-scripture",
+    source: "Seek ye first the kingdom of God",
+    tags: ["scripture"],
+    popularity: 49,
+    lines: [
+      { text: "Seek ye therefore first the kingdom of God, and his justice," },
+      { text: "and all these things shall be added unto you." },
+    ],
+  },
+  {
+    slug: "psalm-46-10",
+    title: "Psalm 46:10",
+    set: "sacred-scripture",
+    source: "Be still and see that I am God",
+    tags: ["scripture", "psalm"],
+    popularity: 48,
+    lines: [
+      { text: "Be still and see that I am God;" },
+      { text: "I will be exalted among the nations," },
+      { text: "and I will be exalted in the earth." },
+    ],
+  },
+  {
+    slug: "joshua-1-9",
+    title: "Joshua 1:9",
+    set: "sacred-scripture",
+    source: "Take courage, and be strong",
+    tags: ["scripture"],
+    popularity: 47,
+    lines: [
+      { text: "Behold I command thee, take courage, and be strong." },
+      { text: "Fear not and be not dismayed:" },
+      { text: "because the Lord thy God is with thee" },
+      { text: "in all things whatsoever thou shalt go to." },
+    ],
+  },
+  {
+    slug: "psalm-27-1",
+    title: "Psalm 27:1",
+    set: "sacred-scripture",
+    source: "The Lord is my light and my salvation",
+    tags: ["scripture", "psalm"],
+    popularity: 46,
+    lines: [
+      { text: "The Lord is my light and my salvation, whom shall I fear?" },
+      { text: "The Lord is the protector of my life:" },
+      { text: "of whom shall I be afraid?" },
+    ],
+  },
+  {
+    slug: "jeremiah-29-11",
+    title: "Jeremiah 29:11",
+    set: "sacred-scripture",
+    source: "Thoughts of peace, and not of affliction",
+    tags: ["scripture"],
+    popularity: 45,
+    lines: [
+      { text: "For I know the thoughts that I think towards you, saith the Lord," },
+      { text: "thoughts of peace, and not of affliction," },
+      { text: "to give you an end and patience." },
+    ],
+  },
+  {
+    slug: "galatians-5-22-23",
+    title: "Galatians 5:22-23",
+    set: "sacred-scripture",
+    source: "The fruit of the Spirit",
+    tags: ["scripture"],
+    popularity: 44,
+    lines: [
+      { text: "But the fruit of the Spirit is, charity, joy, peace," },
+      { text: "patience, benignity, goodness, longanimity," },
+      { text: "mildness, faith, modesty, continency, chastity." },
+    ],
+  },
+  {
+    slug: "micah-6-8",
+    title: "Micah 6:8",
+    set: "sacred-scripture",
+    source: "To do judgment, and to love mercy",
+    tags: ["scripture"],
+    popularity: 43,
+    lines: [
+      { text: "I will shew thee, O man, what is good," },
+      { text: "and what the Lord requireth of thee:" },
+      { text: "Verily, to do judgment, and to love mercy," },
+      { text: "and to walk solicitous with thy God." },
+    ],
+  },
+  {
+    slug: "psalm-118-24",
+    title: "Psalm 118:24",
+    set: "sacred-scripture",
+    source: "This is the day which the Lord hath made",
+    tags: ["scripture", "psalm"],
+    popularity: 42,
+    lines: [
+      { text: "This is the day which the Lord hath made:" },
+      { text: "let us be glad and rejoice therein." },
+    ],
+  },
+  {
+    slug: "second-timothy-4-7",
+    title: "2 Timothy 4:7",
+    set: "sacred-scripture",
+    source: "I have kept the faith",
+    tags: ["scripture"],
+    popularity: 41,
+    lines: [
+      { text: "I have fought a good fight," },
+      { text: "I have finished my course," },
+      { text: "I have kept the faith." },
+    ],
+  },
+  {
+    slug: "magnificat-luke-1-46",
+    title: "Luke 1:46-47",
+    set: "sacred-scripture",
+    source: "The Magnificat",
+    tags: ["scripture", "marian"],
+    popularity: 40,
+    lines: [
+      { text: "My soul doth magnify the Lord." },
+      { text: "And my spirit hath rejoiced in God my Saviour." },
+    ],
+  },
+  {
+    slug: "matthew-22-37-39",
+    title: "Matthew 22:37-39",
+    set: "sacred-scripture",
+    source: "The greatest commandment",
+    tags: ["scripture"],
+    popularity: 39,
+    lines: [
+      { text: "Thou shalt love the Lord thy God with thy whole heart," },
+      { text: "and with thy whole soul, and with thy whole mind." },
+      { text: "This is the greatest and the first commandment." },
+      { text: "And the second is like to this:" },
+      { text: "Thou shalt love thy neighbour as thyself." },
+    ],
+  },
+  {
+    slug: "psalm-51-10",
+    title: "Psalm 51:10",
+    set: "sacred-scripture",
+    source: "Create a clean heart in me, O God",
+    tags: ["scripture", "psalm"],
+    popularity: 38,
+    lines: [
+      { text: "Create a clean heart in me, O God:" },
+      { text: "and renew a right spirit within my bowels." },
+    ],
+  },
+  {
+    slug: "isaiah-40-31",
+    title: "Isaiah 40:31",
+    set: "sacred-scripture",
+    source: "They shall take wings as eagles",
+    tags: ["scripture"],
+    popularity: 37,
+    lines: [
+      { text: "But they that hope in the Lord shall renew their strength," },
+      { text: "they shall take wings as eagles," },
+      { text: "they shall run and not be weary," },
+      { text: "they shall walk and not faint." },
+    ],
+  },
+  {
+    slug: "the-beatitudes",
+    title: "The Beatitudes",
+    set: "sacred-scripture",
+    source: "Matthew 5:3-9",
+    tags: ["scripture"],
+    popularity: 36,
+    lines: [
+      { text: "Blessed are the poor in spirit:" },
+      { text: "for theirs is the kingdom of heaven." },
+      { text: "Blessed are the meek: for they shall possess the land." },
+      { text: "Blessed are they that mourn: for they shall be comforted." },
+      { text: "Blessed are they that hunger and thirst after justice:" },
+      { text: "for they shall have their fill." },
+      { text: "Blessed are the merciful: for they shall obtain mercy." },
+      { text: "Blessed are the clean of heart: for they shall see God." },
+      { text: "Blessed are the peacemakers:" },
+      { text: "for they shall be called the children of God." },
+    ],
+  },
 ];
+
+// Poems are fetched letter-exact from public-domain sources (PoetryDB /
+// Wikisource) by scripts/fetch-poems.mjs — generated data, never hand-typed.
+const POEMS: SeedPassage[] = JSON.parse(
+  readFileSync("prisma/poems.generated.json", "utf8"),
+);
 
 async function main() {
   console.log("Seeding prayers…");
@@ -393,7 +758,7 @@ async function main() {
     setIdBySlug[s.slug] = set.id;
   }
 
-  for (const p of PRAYERS) {
+  for (const p of [...PRAYERS, ...POEMS]) {
     const contentSetId = setIdBySlug[p.set];
     if (!contentSetId) throw new Error(`Unknown set "${p.set}" for ${p.slug}`);
     const passage = await db.passage.upsert({

@@ -28,10 +28,12 @@ export function Icon({
   name,
   size = 20,
   color = "currentColor",
+  filled = false,
 }: {
   name: string;
   size?: number;
   color?: string;
+  filled?: boolean;
 }) {
   const common = {
     width: size,
@@ -67,6 +69,65 @@ export function Icon({
       <svg {...common}>
         <circle cx={12} cy={8} r={3.4} />
         <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+      </svg>
+    );
+  }
+  if (name === "home") {
+    return (
+      <svg {...common}>
+        <path d="M4 11.5 12 4l8 7.5" />
+        <path d="M6 10.5V20h12v-9.5" />
+        <path d="M10 20v-5h4v5" />
+      </svg>
+    );
+  }
+  if (name === "anchor") {
+    return (
+      <svg {...common} strokeWidth={filled ? 2.1 : 1.7}>
+        <circle cx={12} cy={5} r={3} fill={filled ? color : "none"} />
+        <path d="M12 22V8" />
+        <path d="M5 12H2a10 10 0 0 0 20 0h-3" fill="none" />
+      </svg>
+    );
+  }
+  if (name === "mic") {
+    return (
+      <svg {...common}>
+        <rect x={9} y={3} width={6} height={11} rx={3} />
+        <path d="M6 11a6 6 0 0 0 12 0M12 17v4" />
+      </svg>
+    );
+  }
+  if (name === "eye") {
+    return (
+      <svg {...common}>
+        <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" />
+        <circle cx={12} cy={12} r={2.6} />
+      </svg>
+    );
+  }
+  if (name === "male") {
+    return (
+      <svg {...common}>
+        <circle cx={9.5} cy={14.5} r={5} />
+        <path d="M13 11 19 5M14.5 5H19v4.5" />
+      </svg>
+    );
+  }
+  if (name === "female") {
+    return (
+      <svg {...common}>
+        <circle cx={12} cy={9} r={5} />
+        <path d="M12 14v7M8.5 18h7" />
+      </svg>
+    );
+  }
+  if (name === "both") {
+    return (
+      <svg {...common}>
+        <circle cx={8.5} cy={9} r={2.7} />
+        <circle cx={15.5} cy={9} r={2.7} />
+        <path d="M4 19a4.5 4.5 0 0 1 8.5-2M20 19a4.5 4.5 0 0 0-8.5-2" />
       </svg>
     );
   }

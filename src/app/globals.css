@@ -1,171 +1,189 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * Memoria design system — "Hallow-style" immersive build.
- * Midnight gradients, glass, glowing gold; warm-devotional and reverent.
- * Two themes share the gold + leader/response hues; everything else flips.
- * Cormorant Garamond for sacred text, Barlow for UI.
+ * Memoria design system — modern, clean, editorial.
+ * White canvas, cool slate ink, an electric blue as the structural accent
+ * and a warm orange for emphasis/action. Immersive keeps a dark, atmospheric
+ * mode (its own toggle). Fraunces for display + prayer text, Inter for UI.
+ * Semantic tokens are remapped in place — the historic --gold names now carry
+ * the blue primary, so every component inherits the new palette untouched.
  * ------------------------------------------------------------------ */
 
-/* LIGHT — "Dawn" */
+/* LIGHT — "Daylight" (default) */
 :root {
-  --parchment: #f3ebdb;
-  --parchment-raised: #fcf7ed;
-  --ink: #2b2620;
-  --ink-soft: #6e655a;
-  --ink-faint: #9a8f7e;
-  --hairline: rgba(43, 38, 32, 0.12);
+  --parchment: #ffffff;
+  --parchment-raised: #f4f7fc;
+  --ink: #0f172a;
+  --ink-soft: #475569;
+  --ink-faint: #94a3b8;
+  --hairline: rgba(15, 23, 42, 0.09);
 
-  --gold: #b0842a;
-  --gold-soft: #c99a38;
-  --gold-glow: rgba(201, 154, 56, 0.35);
+  /* PRIMARY — electric blue (carried under the legacy --gold names) */
+  --gold: #2563eb;
+  --gold-soft: #3b82f6;
+  --gold-glow: rgba(37, 99, 235, 0.28);
 
-  --caller: #43597e; /* Leader */
+  /* ACCENT — warm orange for emphasis + primary actions */
+  --accent: #f97316;
+  --accent-soft: #fb923c;
+  --accent-glow: rgba(249, 115, 22, 0.32);
+
+  --check: #16a34a; /* "line passed" green */
+  --check-glow: rgba(22, 163, 74, 0.32);
+
+  --caller: #2563eb; /* Leader — blue */
   --caller-ink: #ffffff;
-  --responder: #586b4b; /* Response */
+  --responder: #0d9488; /* Response — teal */
   --responder-ink: #ffffff;
   --unison: var(--parchment-raised);
   --unison-ink: var(--ink);
 
-  --glass: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(43, 38, 32, 0.1);
-  --glass-strong: rgba(252, 247, 237, 0.85);
-  --chip-bg: rgba(255, 255, 255, 0.62);
-  --chip-bd: rgba(43, 38, 32, 0.1);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-strong: rgba(255, 255, 255, 0.9);
+  --chip-bg: rgba(255, 255, 255, 0.8);
+  --chip-bd: rgba(15, 23, 42, 0.08);
 
-  --gold-text: #3a2a0c;
-  --play-grad: linear-gradient(150deg, #e8c56b, #c99a38);
-  --play-glow: 0 8px 22px rgba(201, 154, 56, 0.35);
-  --track: rgba(43, 38, 32, 0.13);
-  --icon-grad: linear-gradient(150deg, #ece0c7, #d8c6a2);
-  --icon-stroke: #9a6f1e;
+  --gold-text: #ffffff; /* text on blue fills */
+  --play-grad: linear-gradient(150deg, #fb923c, #f97316); /* orange CTA */
+  --play-glow: 0 8px 22px rgba(249, 115, 22, 0.32);
+  --track: rgba(15, 23, 42, 0.1);
+  --icon-grad: linear-gradient(150deg, #e0ecff, #c9dcff);
+  --icon-stroke: #2563eb;
 
-  --leader-bubble: rgba(67, 89, 126, 0.12);
-  --leader-bd: rgba(67, 89, 126, 0.24);
-  --resp-bubble: rgba(88, 107, 75, 0.12);
-  --resp-bd: rgba(88, 107, 75, 0.24);
-  --act-bg: rgba(67, 89, 126, 0.2);
-  --act-bd: rgba(67, 89, 126, 0.5);
-  --act-glow: 0 8px 22px rgba(67, 89, 126, 0.22);
-  --act-ink: #1f2a40;
-  --resp-act-bg: rgba(88, 107, 75, 0.2);
-  --resp-act-bd: rgba(88, 107, 75, 0.5);
-  --resp-act-glow: 0 8px 22px rgba(88, 107, 75, 0.22);
+  --leader-bubble: rgba(37, 99, 235, 0.1);
+  --leader-bd: rgba(37, 99, 235, 0.22);
+  --resp-bubble: rgba(13, 148, 136, 0.1);
+  --resp-bd: rgba(13, 148, 136, 0.22);
+  --act-bg: rgba(37, 99, 235, 0.16);
+  --act-bd: rgba(37, 99, 235, 0.5);
+  --act-glow: 0 8px 22px rgba(37, 99, 235, 0.22);
+  --act-ink: #1e3a8a;
+  --resp-act-bg: rgba(13, 148, 136, 0.16);
+  --resp-act-bd: rgba(13, 148, 136, 0.5);
+  --resp-act-glow: 0 8px 22px rgba(13, 148, 136, 0.22);
 
-  --feat-grad: linear-gradient(155deg, #efe5d2 0%, #e7dac2 50%, #dfd0b2 100%);
-  --feat-g1: rgba(227, 188, 92, 0.5);
-  --feat-g2: rgba(186, 166, 222, 0.45);
-  --feat-ink: #2b2620;
-  --halo: rgba(201, 154, 56, 0.22);
+  --feat-grad: linear-gradient(150deg, #eff4ff 0%, #f7f9fd 52%, #fff2e8 100%);
+  --feat-g1: rgba(37, 99, 235, 0.18);
+  --feat-g2: rgba(249, 115, 22, 0.16);
+  --feat-ink: #0f172a;
+  --halo: rgba(37, 99, 235, 0.16);
 
-  --bubble-shadow: 0 2px 4px rgba(43, 38, 32, 0.04),
-    0 12px 30px rgba(43, 38, 32, 0.07);
+  --bubble-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 30px rgba(15, 23, 42, 0.08);
 
-  --screen-bg: radial-gradient(
-      135% 75% at 50% -8%,
-      #fcf7ed 0%,
-      #f3ebdb 40%,
-      #ece2cf 74%
-    ),
-    radial-gradient(72% 42% at 84% 4%, rgba(196, 166, 224, 0.34), transparent 60%),
-    radial-gradient(95% 55% at 42% 116%, rgba(227, 188, 92, 0.34), transparent 60%);
+  --screen-bg: radial-gradient(120% 70% at 50% -10%, #f3f8ff 0%, #ffffff 46%),
+    radial-gradient(70% 40% at 85% 2%, rgba(37, 99, 235, 0.06), transparent 60%),
+    radial-gradient(80% 46% at 12% 110%, rgba(249, 115, 22, 0.06), transparent 60%);
 
   --background: var(--parchment);
   --foreground: var(--ink);
 }
 
-/* DARK — "Candlelight" */
+/* DARK — "Midnight" (immersive + opt-in) */
 [data-theme="dark"] {
-  --parchment: #0a0c18;
-  --parchment-raised: #16182b;
-  --ink: #f4eee2;
-  --ink-soft: rgba(236, 230, 218, 0.62);
-  --ink-faint: rgba(236, 230, 218, 0.45);
+  --parchment: #0b1120;
+  --parchment-raised: #131c2e;
+  --ink: #f1f5f9;
+  --ink-soft: rgba(226, 232, 240, 0.66);
+  --ink-faint: rgba(226, 232, 240, 0.45);
   --hairline: rgba(255, 255, 255, 0.1);
 
-  --gold: #e3bc5c;
-  --gold-soft: #f0ce78;
-  --gold-glow: rgba(201, 154, 56, 0.5);
+  --gold: #60a5fa;
+  --gold-soft: #93c5fd;
+  --gold-glow: rgba(96, 165, 250, 0.45);
 
-  --caller: #5e84b8;
-  --responder: #7ba368;
-  --unison: #1c1a33;
-  --unison-ink: #f4eee2;
+  --accent: #fb923c;
+  --accent-soft: #fdba74;
+  --accent-glow: rgba(251, 146, 60, 0.45);
+
+  --check: #34d399;
+  --check-glow: rgba(52, 211, 153, 0.45);
+
+  --caller: #60a5fa;
+  --responder: #2dd4bf;
+  --unison: #16203a;
+  --unison-ink: #f1f5f9;
 
   --glass: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-strong: rgba(16, 13, 28, 0.84);
+  --glass-strong: rgba(11, 17, 32, 0.85);
   --chip-bg: rgba(255, 255, 255, 0.07);
   --chip-bd: rgba(255, 255, 255, 0.1);
 
-  --gold-text: #1b130a;
-  --play-grad: linear-gradient(150deg, #f0ce78, #c99a38);
-  --play-glow: 0 10px 28px rgba(201, 154, 56, 0.5);
+  --gold-text: #06122b;
+  --play-grad: linear-gradient(150deg, #fdba74, #f97316);
+  --play-glow: 0 10px 28px rgba(249, 115, 22, 0.5);
   --track: rgba(255, 255, 255, 0.14);
-  --icon-grad: linear-gradient(150deg, #4b4478, #262145);
-  --icon-stroke: #e3bc5c;
+  --icon-grad: linear-gradient(150deg, #1e3a8a, #102350);
+  --icon-stroke: #60a5fa;
 
-  --leader-bubble: rgba(99, 126, 180, 0.16);
-  --leader-bd: rgba(120, 150, 210, 0.26);
-  --resp-bubble: rgba(110, 140, 95, 0.16);
-  --resp-bd: rgba(140, 170, 120, 0.24);
-  --act-bg: rgba(120, 150, 210, 0.34);
-  --act-bd: rgba(150, 178, 235, 0.5);
-  --act-glow: 0 0 28px rgba(120, 150, 210, 0.4);
+  --leader-bubble: rgba(96, 165, 250, 0.16);
+  --leader-bd: rgba(96, 165, 250, 0.3);
+  --resp-bubble: rgba(45, 212, 191, 0.14);
+  --resp-bd: rgba(45, 212, 191, 0.28);
+  --act-bg: rgba(96, 165, 250, 0.32);
+  --act-bd: rgba(147, 197, 253, 0.5);
+  --act-glow: 0 0 28px rgba(96, 165, 250, 0.4);
   --act-ink: #ffffff;
-  --resp-act-bg: rgba(130, 165, 110, 0.34);
-  --resp-act-bd: rgba(165, 195, 140, 0.5);
-  --resp-act-glow: 0 0 28px rgba(130, 165, 110, 0.4);
+  --resp-act-bg: rgba(45, 212, 191, 0.3);
+  --resp-act-bd: rgba(94, 234, 212, 0.5);
+  --resp-act-glow: 0 0 28px rgba(45, 212, 191, 0.4);
 
-  --feat-grad: linear-gradient(155deg, #3a3370 0%, #2a2350 45%, #171430 100%);
-  --feat-g1: rgba(176, 132, 42, 0.55);
-  --feat-g2: rgba(120, 90, 170, 0.5);
-  --feat-ink: #f6f1e6;
-  --halo: rgba(227, 188, 92, 0.28);
+  --feat-grad: linear-gradient(150deg, #16233f 0%, #111a2e 50%, #241a12 100%);
+  --feat-g1: rgba(96, 165, 250, 0.5);
+  --feat-g2: rgba(249, 115, 22, 0.4);
+  --feat-ink: #f1f5f9;
+  --halo: rgba(96, 165, 250, 0.3);
 
   --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 14px 38px rgba(0, 0, 0, 0.45);
+    0 14px 38px rgba(0, 0, 0, 0.5);
 
   --screen-bg: radial-gradient(
       135% 75% at 50% -8%,
-      #262c52 0%,
-      #161a33 36%,
-      #0a0c18 70%
+      #16233f 0%,
+      #0e1526 38%,
+      #0b1120 72%
     ),
-    radial-gradient(75% 45% at 82% 6%, rgba(96, 64, 140, 0.5), transparent 60%),
-    radial-gradient(95% 55% at 45% 112%, rgba(176, 132, 42, 0.3), transparent 62%);
+    radial-gradient(75% 45% at 82% 6%, rgba(37, 99, 235, 0.38), transparent 60%),
+    radial-gradient(92% 52% at 20% 112%, rgba(249, 115, 22, 0.22), transparent 62%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --parchment: #0a0c18;
-    --parchment-raised: #16182b;
-    --ink: #f4eee2;
-    --ink-soft: rgba(236, 230, 218, 0.62);
-    --ink-faint: rgba(236, 230, 218, 0.45);
+    --parchment: #0b1120;
+    --parchment-raised: #131c2e;
+    --ink: #f1f5f9;
+    --ink-soft: rgba(226, 232, 240, 0.66);
+    --ink-faint: rgba(226, 232, 240, 0.45);
     --hairline: rgba(255, 255, 255, 0.1);
-    --gold: #e3bc5c;
-    --gold-soft: #f0ce78;
-    --gold-glow: rgba(201, 154, 56, 0.5);
-    --caller: #5e84b8;
-    --responder: #7ba368;
-    --unison: #1c1a33;
-    --unison-ink: #f4eee2;
+    --gold: #60a5fa;
+    --gold-soft: #93c5fd;
+    --gold-glow: rgba(96, 165, 250, 0.45);
+    --accent: #fb923c;
+    --accent-soft: #fdba74;
+    --accent-glow: rgba(251, 146, 60, 0.45);
+    --check: #34d399;
+    --check-glow: rgba(52, 211, 153, 0.45);
+    --caller: #60a5fa;
+    --responder: #2dd4bf;
+    --unison: #16203a;
+    --unison-ink: #f1f5f9;
     --glass: rgba(255, 255, 255, 0.06);
     --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-strong: rgba(16, 13, 28, 0.84);
+    --glass-strong: rgba(11, 17, 32, 0.85);
     --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
-      0 14px 38px rgba(0, 0, 0, 0.45);
+      0 14px 38px rgba(0, 0, 0, 0.5);
     --screen-bg: radial-gradient(
         135% 75% at 50% -8%,
-        #262c52 0%,
-        #161a33 36%,
-        #0a0c18 70%
+        #16233f 0%,
+        #0e1526 38%,
+        #0b1120 72%
       ),
-      radial-gradient(75% 45% at 82% 6%, rgba(96, 64, 140, 0.5), transparent 60%),
+      radial-gradient(75% 45% at 82% 6%, rgba(37, 99, 235, 0.38), transparent 60%),
       radial-gradient(
-        95% 55% at 45% 112%,
-        rgba(176, 132, 42, 0.3),
+        92% 52% at 20% 112%,
+        rgba(249, 115, 22, 0.22),
         transparent 62%
       );
   }
@@ -180,6 +198,8 @@
   --color-hairline: var(--hairline);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-caller: var(--caller);
   --color-responder: var(--responder);
   --color-background: var(--background);
@@ -209,15 +229,16 @@ body::before {
   background: var(--screen-bg);
 }
 
-/* Connective-tissue anchor: prepositions/conjunctions as memory scaffolding */
+/* Connective-tissue anchor: prepositions/conjunctions as memory scaffolding.
+   Rendered in the warm accent so the emphasis words pop against the blue UI. */
 .connective {
-  color: var(--gold);
+  color: var(--accent);
   font-weight: 600;
   font-style: italic;
 }
 [data-theme="dark"] .connective,
 :root:not([data-theme="light"]) .connective {
-  color: var(--gold-soft);
+  color: var(--accent-soft);
 }
 
 /* ------------------------------------------------------------------ *
@@ -236,17 +257,17 @@ body::before {
   transition: color 0.2s, background-color 0.2s, border-color 0.2s;
 }
 .recite-word:hover {
-  background: rgba(176, 131, 39, 0.1);
+  background: rgba(249, 115, 22, 0.1);
 }
-/* Anchor words: the gilded scaffolding that stays visible. */
+/* Anchor words: the accent scaffolding that stays visible. */
 .recite-word.is-anchor {
-  color: var(--gold);
+  color: var(--accent);
   font-weight: 600;
   font-style: italic;
 }
 [data-theme="dark"] .recite-word.is-anchor,
 :root:not([data-theme="light"]) .recite-word.is-anchor {
-  color: var(--gold-soft);
+  color: var(--accent-soft);
 }
 /* Words filled in by voice as you recite. */
 .recite-word.is-heard {
@@ -256,14 +277,14 @@ body::before {
    dashed underline so it reads as a fill-in slot. */
 .recite-word.is-blank {
   color: transparent;
-  border-bottom: 2px dashed var(--gold-soft);
+  border-bottom: 2px dashed var(--accent-soft);
   border-radius: 3px;
-  background: rgba(176, 131, 39, 0.06);
+  background: rgba(249, 115, 22, 0.06);
 }
 .recite-word.is-blank:hover {
   border-bottom-style: solid;
-  border-bottom-color: var(--gold);
-  background: rgba(176, 131, 39, 0.16);
+  border-bottom-color: var(--accent);
+  background: rgba(249, 115, 22, 0.16);
 }
 
 /* Read-mode anchor editing: each word is a tappable button. Anchored words
@@ -284,22 +305,22 @@ body::before {
   background: none;
 }
 .word-toggle.anchor-off:hover {
-  background: rgba(176, 131, 39, 0.16);
-  box-shadow: inset 0 -2px 0 rgba(176, 131, 39, 0.45);
+  background: rgba(249, 115, 22, 0.16);
+  box-shadow: inset 0 -2px 0 rgba(249, 115, 22, 0.45);
 }
 .word-toggle.anchor-on {
-  color: var(--gold);
+  color: var(--accent);
   font-weight: 600;
   font-style: italic;
-  background: rgba(176, 131, 39, 0.18);
+  background: rgba(249, 115, 22, 0.16);
 }
 .word-toggle.anchor-on:hover {
-  background: rgba(176, 131, 39, 0.3);
+  background: rgba(249, 115, 22, 0.28);
 }
 [data-theme="dark"] .word-toggle.anchor-on,
 :root:not([data-theme="light"]) .word-toggle.anchor-on {
-  color: var(--gold-soft);
-  background: rgba(216, 178, 90, 0.22);
+  color: var(--accent-soft);
+  background: rgba(251, 146, 60, 0.2);
 }
 
 /* Icons mode: a key word shown as its emoji memory hook. */
@@ -339,10 +360,122 @@ body::before {
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(176, 131, 39, 0);
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
   }
   50% {
-    box-shadow: 0 0 0 3px rgba(176, 131, 39, 0.25);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
+  }
+}
+
+/* Immersive Player: one narrow column on phones; on desktop the prayer lines
+   and the rosary diagram sit side by side, with the diagram as a sticky aside. */
+.immersive-shell {
+  margin-left: auto;
+  margin-right: auto;
+}
+.player-cols {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 1024px) {
+  .immersive-shell--wide {
+    max-width: 980px;
+  }
+  .player-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    column-gap: 44px;
+  }
+  .player-cols > .col-lines {
+    order: 1;
+    min-width: 0;
+  }
+  .player-cols > .col-aside {
+    order: 2;
+  }
+  .col-aside-inner {
+    position: sticky;
+    top: 24px;
+  }
+  .player-dock-card {
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Library: three prayer cards across on desktop, two on phones. */
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+@media (max-width: 560px) {
+  .library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@keyframes check-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Type exercise feedback: a word pops when correct, shakes when wrong,
+   and the blank you're on carries a blinking caret. */
+@keyframes type-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  55% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes type-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 1;
   }
 }
 
